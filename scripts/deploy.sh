@@ -137,6 +137,10 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Suggest model access check
+    log_info "💡 Tip: Run './scripts/check-model-access.sh' to verify Bedrock model access"
+    log_info "💡 Most deployment failures are due to missing Bedrock model permissions"
+    
     log_success "All prerequisites satisfied"
 }
 

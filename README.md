@@ -7,6 +7,17 @@
 
 A **production-ready** Retrieval Augmented Generation (RAG) demo using AWS CDK with TypeScript that creates a Bedrock Knowledge Base, OpenSearch Serverless vector database, and Streamlit frontend. The key feature is **persistent document storage** - the S3 bucket with knowledge base articles survives infrastructure teardowns for rapid iteration.
 
+## Documentation
+
+[Project Runtime Configurations](Documentation/docs/CONFIGS.md)
+[Deployment](Documentation/docs/DEPLOYMENT.md)
+[Disaster Recovery](Documentation/docs/DISASTER_RECOVERY.md)
+[Monitoring & Observability](Documentation/docs/MONITORING.md)
+[Security & Compliance](Documentation/docs/SECURITY.md)
+[Cost Optimization](Documentation/docs/COST.md)
+[Testing](Documentation/docs/TESTING.md)
+[Troubleshooting](Documentation/docs/TROUBLESHOOTING.md)
+
 ## Persistent vs Disposable Resources
 
 | **Persistent (Protected)** | **Disposable (Rapid Iteration)** |
@@ -22,29 +33,128 @@ A **production-ready** Retrieval Augmented Generation (RAG) demo using AWS CDK w
 
 ### Prerequisites
 
+#### **🔧 Required Software**
 - **Node.js** 18+ and npm
-- **Python** 3.9+ and pip
+- **Python** 3.9+ and pip  
 - **AWS CLI** configured with appropriate permissions
 - **AWS CDK** CLI (`npm install -g aws-cdk`)
+
+#### **🤖 AWS Bedrock Model Access (CRITICAL!)**
+
+**⚠️ IMPORTANT**: In a **new AWS account**, you must **request access** to Bedrock foundation models before deployment. This project uses these models:
+
+**Required Models (Request Access):**
+```
+🔹 Embedding Models:
+   • amazon.titan-embed-text-v1      (Default - Required)
+   • cohere.embed-english-v3         (Alternative)
+   • cohere.embed-multilingual-v3    (Alternative)
+
+🔹 Text Generation Models:
+   • anthropic.claude-3-sonnet-20240229-v1:0    (Default chat - Required)
+   • anthropic.claude-3-haiku-20240307-v1:0     (Alternative)
+   • amazon.titan-text-express-v1               (Alternative)
+```
+
+**How to Request Model Access:**
+
+1. **Go to AWS Bedrock Console**:
+   ```bash
+   # Open in your browser
+   https://console.aws.amazon.com/bedrock/
+   ```
+
+2. **Navigate to Model Access**:
+   - Click "**Model access**" in the left sidebar
+   - Click "**Request model access**"
+
+3. **Request Required Models**:
+   ```
+   ✅ Amazon Titan Embed Text v1        (REQUIRED)
+   ✅ Anthropic Claude 3 Sonnet         (REQUIRED)
+   ✅ Cohere Command                     (Optional)
+   ✅ Amazon Titan Text                  (Optional)
+   ```
+
+4. **Submit Request**:
+   - Fill out the use case form: "**Building RAG demo for document search**"
+   - Most requests are **auto-approved instantly**
+   - Some may take **up to 24 hours**
+
+5. **Verify Access**:
+   ```bash
+   # Check if models are available
+   aws bedrock list-foundation-models --region us-east-1
+   
+   # Should show: "modelLifecycle": "ACTIVE" for requested models
+   ```
+
+**❌ What Happens If You Skip This:**
+```bash
+./scripts/deploy.sh dev
+# ❌ Error: "AccessDeniedException: Access denied for model amazon.titan-embed-text-v1"
+# ❌ Knowledge Base creation fails
+# ❌ Chat interface returns errors
+```
+
+**✅ Alternative: Use Different Models**
+If you have access to different models, override them:
+```bash
+export EMBEDDING_MODEL='cohere.embed-english-v3'
+export VECTOR_DIMENSIONS='1024'
+./scripts/deploy.sh dev
+```
+
+#### **🔑 AWS Permissions**
+
+Your AWS user/role needs these permissions:
+```json
+{
+  "Version": "2012-10-17", 
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:*",
+        "s3:*", 
+        "opensearch-serverless:*",
+        "iam:*",
+        "lambda:*",
+        "apigateway:*",
+        "cloudformation:*",
+        "ssm:*",
+        "kms:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
 
 ### 1-Minute Deployment
 
 ```bash
-# Clone and setup
+# 1. Clone and setup
 git clone https://github.com/matoblac/rag-demo-cdk.git
 cd rag-demo-cdk
+
+# 2. Check Bedrock model access (CRITICAL STEP!)
+./scripts/check-model-access.sh
+
+# If models aren't accessible, go to:
+# https://console.aws.amazon.com/bedrock/ → Model access → Request access
+
+# 3. Get your IP and set security restriction
 ./scripts/get-my-ip.sh
+export ALLOWED_IPS='["YOUR_IP/32"]'  # Replace with your actual IP
 
-# 2. Set IP restriction (replace with your actual IP)
-export ALLOWED_IPS='["YOUR_IP/32"]'
-
-# 3. Deploy to development
+# 4. Deploy to development
 ./scripts/deploy.sh dev
 
-# Access your RAG demo at the provided URL!
+# 5. Access your RAG demo at the provided URL!
 ```
 
-### 🔒 **Secure Production Deployment**
+### **Secure Production Deployment**
 
 **⚠️ SECURITY WARNING**: The frontend is publicly accessible by default! For production, restrict access to your IP:
 
@@ -127,7 +237,9 @@ rag-demo-cdk/
 │       └── sample-documents/         # Initial knowledge base content
 │
 ├── Scripts & Automation
-│   ├── deploy.sh                     # Deployment
+│   ├── deploy.sh                     # Main deployment script
+│   ├── check-model-access.sh         # Verify Bedrock model access
+│   └── get-my-ip.sh                  # Get current IP for security
 │
 ├── Documentation
 │   ├── docs/
@@ -155,7 +267,7 @@ rag-demo-cdk/
 ### Rapid Infrastructure Iteration
 - **Disposable Resources**: Rebuild OpenSearch, Bedrock KB in minutes
 - **Environment Isolation**: Separate dev/staging/prod deployments
-- **Zero-downtime Updates**: Blue/green deployment support
+- **Infrastructure as Code**: Rebuild entire stack quickly with CDK
 - **Cost Optimization**: Intelligent scaling and resource management
 
 ### Production-Ready Frontend
@@ -177,244 +289,6 @@ rag-demo-cdk/
 - **Custom Alarms**: Automated alerting for issues
 - **Usage Analytics**: Query patterns and performance
 - **Health Scoring**: Overall system health assessment
-
-## Configuration
-
-### Environment-Specific Settings
-
-```typescript
-// config.ts - Environment configuration
-const environmentConfigs = {
-  dev: {
-    enableMfaDelete: false,
-    enableReplication: false,
-    enableDetailedMonitoring: false,
-    maxConcurrentIngestions: 2,
-  },
-  staging: {
-    enableMfaDelete: false,
-    enableReplication: true,
-    enableDetailedMonitoring: true,
-    maxConcurrentIngestions: 3,
-    backupRegion: 'us-west-2',
-  },
-  prod: {
-    enableMfaDelete: true,
-    enableReplication: true,
-    enableDetailedMonitoring: true,
-    enableVpcEndpoints: true,
-    maxConcurrentIngestions: 10,
-    backupRegion: 'us-west-2',
-  },
-};
-```
-
-### Environment Variables
-
-```bash
-# Core Configuration
-ENVIRONMENT=dev                    # dev, staging, prod
-REGION=us-east-1                  # AWS region
-EMBEDDING_MODEL=amazon.titan-embed-text-v1
-CHUNK_SIZE=1000                   # Document chunk size
-CHUNK_OVERLAP=200                 # Chunk overlap
-VECTOR_DIMENSIONS=1536            # Vector dimensions
-
-# Optional Configuration
-ALERT_EMAIL=admin@company.com     # Alert notifications
-FRONTEND_DOMAIN=rag.company.com   # Custom domain
-KMS_KEY_ID=alias/rag-demo-key    # Custom KMS key
-```
-
-## Deployment Strategies
-
-### Development Workflow
-```bash
-# Quick iteration cycle
-cdk diff                          # Review changes
-cdk deploy RagDemoInfrastructureStack-dev    # Deploy infrastructure only
-# Test and iterate...
-cdk destroy RagDemoInfrastructureStack-dev   # Clean up (storage preserved)
-```
-
-### Production Deployment
-```bash
-# Full production deployment
-./scripts/deploy.sh prod us-east-1 production
-
-# Blue/green deployment
-./scripts/deploy-blue-green.sh prod
-
-# Disaster recovery
-./scripts/backup.sh prod
-./scripts/restore.sh prod us-west-2
-```
-
-### Multi-Environment Management
-```bash
-# Deploy to all environments
-./scripts/deploy.sh dev
-./scripts/deploy.sh staging  
-./scripts/deploy.sh prod
-
-# Environment-specific overrides
-export EMBEDDING_MODEL=anthropic.claude-v2
-./scripts/deploy.sh staging
-```
-
-## Monitoring & Observability
-
-### CloudWatch Dashboards
-- **Query Metrics**: Volume, latency, success rate
-- **Ingestion Monitoring**: Job status, processing time
-- **System Health**: Component status, error rates
-- **Cost Tracking**: Usage patterns, optimization opportunities
-
-### Custom Metrics
-```python
-# Example custom metrics published by the application
-cloudwatch.put_metric_data(
-    Namespace=f'RAG-Demo/{environment}',
-    MetricData=[
-        {
-            'MetricName': 'QueryLatency',
-            'Value': response_time,
-            'Unit': 'Seconds',
-        },
-        {
-            'MetricName': 'UserSatisfaction',
-            'Value': feedback_score,
-            'Unit': 'Count',
-        }
-    ]
-)
-```
-
-### Alarms & Notifications
-- **High Error Rate**: >5% query failures
-- **Slow Queries**: >10 second response time
-- **System Health**: <70% health score
-- **Cost Alerts**: Unusual usage patterns
-
-## Security & Compliance
-
-### Security Features
-- **Encryption**: All data encrypted in transit and at rest
-- **IAM Least Privilege**: Minimal required permissions
-- **VPC Endpoints**: Private network communication (prod)
-- **MFA Delete**: Protection against accidental deletion (prod)
-- **CloudTrail**: Complete audit logging
-
-### Compliance Considerations
-- **Data Residency**: Configurable regions for data locality
-- **Retention Policies**: Automated data lifecycle management
-- **Access Controls**: Fine-grained permission management
-- **Audit Trails**: Comprehensive logging and monitoring
-
-## Cost Optimization
-
-### Intelligent Scaling
-- **S3 Intelligent Tiering**: Automatic storage class transitions
-- **OpenSearch Serverless**: Pay-per-use vector database
-- **Lambda**: Serverless compute with automatic scaling
-- **Lifecycle Policies**: Automated cleanup of old data
-
-### Cost Monitoring
-```bash
-# View cost breakdown by environment
-aws ce get-cost-and-usage \
-  --time-period Start=2023-01-01,End=2023-12-31 \
-  --granularity MONTHLY \
-  --metrics BlendedCost \
-  --group-by Type=DIMENSION,Key=SERVICE
-
-# Set up cost alerts
-aws budgets create-budget \
-  --account-id $ACCOUNT_ID \
-  --budget file://budget-config.json
-```
-
-## Testing
-
-### Unit Tests
-```bash
-npm test                          # Run CDK unit tests
-pytest frontend/tests/           # Run frontend tests
-```
-
-### Integration Tests
-```bash
-# Deploy to test environment
-./scripts/deploy.sh test
-
-# Run integration tests
-python scripts/test-integration.py --environment test
-
-# Cleanup test environment
-cdk destroy --all --profile test
-```
-
-### Load Testing
-```bash
-# Simulate high query volume
-python scripts/load-test.py \
-  --endpoint $FRONTEND_URL \
-  --concurrent-users 50 \
-  --duration 300
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. "Stack does not exist" Error
-```bash
-# Check if stack was deployed
-aws cloudformation describe-stacks --stack-name RagDemoStorageStack-dev
-
-# Redeploy if needed
-cdk deploy RagDemoStorageStack-dev
-```
-
-#### 2. OpenSearch Collection Not Ready
-```bash
-# Check collection status
-aws opensearchserverless list-collections
-
-# Wait for ACTIVE status before proceeding
-```
-
-#### 3. Knowledge Base Ingestion Fails
-```bash
-# Check ingestion job status
-aws bedrock-agent list-ingestion-jobs \
-  --knowledge-base-id $KB_ID
-
-# Restart ingestion
-python scripts/trigger-ingestion.py --knowledge-base-id $KB_ID
-```
-
-#### 4. Frontend Can't Connect
-```bash
-# Check SSM parameters
-aws ssm get-parameter --name /rag-demo/dev/frontend-config
-
-# Verify Lambda environment variables
-aws lambda get-function-configuration --function-name rag-demo-streamlit-app-dev
-```
-
-### Debugging Commands
-```bash
-# CDK debugging
-cdk doctor                       # Check CDK environment
-cdk synth                       # Generate CloudFormation templates
-cdk diff                        # Show deployment changes
-
-# AWS service debugging  
-aws bedrock list-foundation-models           # Available models
-aws opensearchserverless list-collections   # OpenSearch status
-aws s3 ls s3://your-bucket-name/documents/  # Document count
-```
 
 ## Contributing
 
@@ -455,21 +329,7 @@ flake8 frontend/
 black frontend/
 ```
 
-## Roadmap
 
-### Upcoming Features
-- [ ] **Multi-modal Support**: Image and audio document processing
-- [ ] **Advanced RAG**: Hybrid search, re-ranking, context compression
-- [ ] **Authentication**: Cognito integration for user management
-- [ ] **Multi-tenancy**: Isolated knowledge bases per organization
-- [ ] **Advanced Analytics**: Query optimization recommendations
-- [ ] **API Extensions**: REST API for external integrations
-
-### Performance Improvements
-- [ ] **Caching Layer**: Redis for frequent queries
-- [ ] **Parallel Processing**: Concurrent document ingestion
-- [ ] **Edge Deployment**: CloudFront integration
-- [ ] **Model Optimization**: Fine-tuned embedding models
 
 
 ## Support
