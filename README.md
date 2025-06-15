@@ -9,14 +9,14 @@ A **production-ready** Retrieval Augmented Generation (RAG) demo using AWS CDK w
 
 ## Documentation
 
-[Project Runtime Configurations](Documentation/docs/CONFIGS.md)
-[Deployment](Documentation/docs/DEPLOYMENT.md)
-[Disaster Recovery](Documentation/docs/DISASTER_RECOVERY.md)
-[Monitoring & Observability](Documentation/docs/MONITORING.md)
-[Security & Compliance](Documentation/docs/SECURITY.md)
-[Cost Optimization](Documentation/docs/COST.md)
-[Testing](Documentation/docs/TESTING.md)
-[Troubleshooting](Documentation/docs/TROUBLESHOOTING.md)
+1. [Project Runtime Configurations](Documentation/docs/CONFIGS.md)
+2. [Deployment](Documentation/docs/DEPLOYMENT.md)
+3. [Disaster Recovery](Documentation/docs/DISASTER_RECOVERY.md)
+4. [Monitoring & Observability](Documentation/docs/MONITORING.md)
+5. [Security & Compliance](Documentation/docs/SECURITY.md)
+6. [Cost Optimization](Documentation/docs/COST.md)
+7. [Testing](Documentation/docs/TESTING.md)
+8. [Troubleshooting](Documentation/docs/TROUBLESHOOTING.md)
 
 ## Persistent vs Disposable Resources
 
