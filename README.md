@@ -5,340 +5,479 @@
 [![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-red)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A **production-ready** Retrieval Augmented Generation (RAG) demo using AWS CDK with TypeScript that creates a Bedrock Knowledge Base, OpenSearch Serverless vector database, and Streamlit frontend. The key feature is **persistent document storage** - the S3 bucket with knowledge base articles survives infrastructure teardowns for rapid iteration.
+## What is This Project?
 
-## Documentation
+**RAG Demo CDK** is a production-ready **Retrieval Augmented Generation (RAG)** system that allows you to chat with your documents using AI. Think of it as creating your own "ChatGPT" but trained on your company's documents and knowledge.
 
-1. [Project Runtime Configurations](Documentation/docs/CONFIGS.md)
-2. [Deployment](Documentation/docs/DEPLOYMENT.md)
-3. [Disaster Recovery](Documentation/docs/DISASTER_RECOVERY.md)
-4. [Monitoring & Observability](Documentation/docs/MONITORING.md)
-5. [Security & Compliance](Documentation/docs/SECURITY.md)
-6. [Cost Optimization](Documentation/docs/COST.md)
-7. [Testing](Documentation/docs/TESTING.md)
-8. [Troubleshooting](Documentation/docs/TROUBLESHOOTING.md)
+### What is RAG?
+**RAG** combines the power of:
+- **Document Search**: Finding relevant information from your document library
+- **AI Generation**: Using that information to generate intelligent, contextual responses
+- **Source Citations**: Always showing where answers came from for trust and verification
 
-## Persistent vs Disposable Resources
+### Real-World Use Cases
+- **Customer Support**: Chat with product manuals, FAQs, and knowledge bases
+- **Legal Research**: Query contracts, policies, and legal documents
+- **Technical Documentation**: Get answers from API docs, troubleshooting guides
+- **Training & Onboarding**: Interactive learning from company handbooks
+- **Research & Analysis**: Extract insights from reports and academic papers
+
+## Key Innovation: Persistent + Disposable Architecture
+
+This project solves a critical problem in RAG development: **balancing rapid iteration with data protection**.
 
 | **Persistent (Protected)** | **Disposable (Rapid Iteration)** |
 |----------------------------|-----------------------------------|
-| S3 Document Bucket | Bedrock Knowledge Base |
-| Cross-region Backup | OpenSearch Serverless Collection |
-| KMS Encryption Keys | Lambda Functions |
-| Document Versioning | IAM Roles & Policies |
-| | CloudWatch Dashboards |
-| | API Gateway |
+| 📁 S3 Document Bucket | 🔍 Bedrock Knowledge Base |
+| 🔄 Cross-region Backup | 🗂️ OpenSearch Vector Database |
+| 🔐 KMS Encryption Keys | ⚡ Lambda Functions |
+| 📝 Document Versioning | 🔧 IAM Roles & Policies |
+| | 📊 CloudWatch Dashboards |
+| | 🌐 API Gateway |
 
-## Quick Start
+**Why This Matters**: You can tear down and rebuild the entire AI infrastructure in minutes without losing your documents or having to re-upload gigabytes of data.
+
+## 🎯 Demo Scope & Limitations
+
+### ✅ **What This Demo Includes**
+- **Complete RAG Chat Interface**: Professional chat UI with source citations
+- **Multi-Model AI Support**: Switch between Claude, Titan, and other Bedrock models  
+- **Smart Document Retrieval**: Hybrid search with confidence scores and context
+- **Persistent Storage**: Documents survive infrastructure teardowns
+- **Enterprise Architecture**: Multi-environment deployment with monitoring
+- **One-Command Deploy**: Full system running in under 5 minutes
+
+### 🚧 **Demo Limitations (By Design)**
+- **No Document Management UI**: Can't browse/manage uploaded documents via web interface
+- **No Usage Analytics**: No dashboard showing query patterns or document popularity
+- **No System Health UI**: No frontend monitoring of infrastructure status
+- **Basic Settings**: Limited user preferences and configuration options
+- **Single User**: No authentication or multi-user support
+
+### 🗺️ **Evolution Path**
+This demo provides a **solid foundation** that can evolve into a full production system. See our [Roadmap](Documentation/docs/ROADMAP.md) for planned enhancements including document management, analytics dashboards, system monitoring, and enterprise features.
+
+**Perfect for:**
+- **Proof of Concepts**: Demonstrate RAG capabilities to stakeholders
+- **Learning & Development**: Understand AWS Bedrock and RAG architecture
+- **Rapid Prototyping**: Build and test document-based AI applications
+- **Architecture Foundation**: Starting point for production applications
+
+## Documentation
+
+- 📖 [Project Configuration](Documentation/docs/CONFIGS.md) - Environment settings and customization
+- 🚀 [Deployment Guide](Documentation/docs/DEPLOYMENT.md) - Step-by-step deployment instructions
+- 🆘 [Disaster Recovery](Documentation/docs/Disaster_Recovery.md) - Backup and recovery procedures
+- 📊 [Monitoring & Observability](Documentation/docs/MONITORING.md) - System monitoring setup
+- 🔒 [Security & Compliance](Documentation/docs/SECURITY.md) - Security best practices
+- 💰 [Cost Optimization](Documentation/docs/COST.md) - Managing AWS costs
+- 🧪 [Testing](Documentation/docs/TESTING.md) - Testing strategies
+- 🔧 [Troubleshooting](Documentation/docs/TROUBLESHOOTING.md) - Common issues and solutions
+- 🗺️ [Roadmap & Future Features](Documentation/docs/ROADMAP.md) - Planned enhancements and evolution
+
+## Quick Start (5 Minutes to Running System)
 
 ### Prerequisites
 
 #### **🔧 Required Software**
-- **Node.js** 18+ and npm
-- **Python** 3.9+ and pip  
-- **AWS CLI** configured with appropriate permissions
-- **AWS CDK** CLI (`npm install -g aws-cdk`)
+```bash
+# Check if you have these installed
+node --version    # Need 18+
+python --version  # Need 3.9+
+aws --version     # Need AWS CLI configured
+cdk --version     # Need AWS CDK CLI
+```
+
+**Install Missing Tools**:
+```bash
+# Install Node.js (if needed)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install AWS CLI (if needed)
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip && sudo ./aws/install
+
+# Install CDK CLI (if needed)
+npm install -g aws-cdk
+
+# Configure AWS credentials (if needed)
+aws configure
+```
 
 #### **🤖 AWS Bedrock Model Access (CRITICAL!)**
 
-**⚠️ IMPORTANT**: In a **new AWS account**, you must **request access** to Bedrock foundation models before deployment. This project uses these models:
+⚠️ **IMPORTANT**: You must request access to AI models before deployment. This takes 2 minutes but is often forgotten!
 
-**Required Models (Request Access):**
+**Required Models**:
 ```
-🔹 Embedding Models:
-   • amazon.titan-embed-text-v1      (Default - Required)
-   • cohere.embed-english-v3         (Alternative)
-   • cohere.embed-multilingual-v3    (Alternative)
-
-🔹 Text Generation Models:
-   • anthropic.claude-3-sonnet-20240229-v1:0    (Default chat - Required)
-   • anthropic.claude-3-haiku-20240307-v1:0     (Alternative)
-   • amazon.titan-text-express-v1               (Alternative)
+🔹 amazon.titan-embed-text-v1           (For document embeddings - REQUIRED)
+🔹 anthropic.claude-3-sonnet-20240229-v1:0  (For chat responses - REQUIRED)
 ```
 
-**How to Request Model Access:**
+**How to Request Access**:
 
-1. **Go to AWS Bedrock Console**:
-   ```bash
-   # Open in your browser
-   https://console.aws.amazon.com/bedrock/
-   ```
+1. **Open AWS Bedrock Console**: https://console.aws.amazon.com/bedrock/
+2. **Click "Model access"** in left sidebar
+3. **Click "Request model access"**
+4. **Check these models**:
+   - ✅ Amazon Titan Embed Text v1
+   - ✅ Anthropic Claude 3 Sonnet
+5. **Submit** (usually auto-approved instantly)
 
-2. **Navigate to Model Access**:
-   - Click "**Model access**" in the left sidebar
-   - Click "**Request model access**"
-
-3. **Request Required Models**:
-   ```
-   ✅ Amazon Titan Embed Text v1        (REQUIRED)
-   ✅ Anthropic Claude 3 Sonnet         (REQUIRED)
-   ✅ Cohere Command                     (Optional)
-   ✅ Amazon Titan Text                  (Optional)
-   ```
-
-4. **Submit Request**:
-   - Fill out the use case form: "**Building RAG demo for document search**"
-   - Most requests are **auto-approved instantly**
-   - Some may take **up to 24 hours**
-
-5. **Verify Access**:
-   ```bash
-   # Check if models are available
-   aws bedrock list-foundation-models --region us-east-1
-   
-   # Should show: "modelLifecycle": "ACTIVE" for requested models
-   ```
-
-**❌ What Happens If You Skip This:**
+**Verify Access**:
 ```bash
-./scripts/deploy.sh dev
-# ❌ Error: "AccessDeniedException: Access denied for model amazon.titan-embed-text-v1"
-# ❌ Knowledge Base creation fails
-# ❌ Chat interface returns errors
-```
-
-**✅ Alternative: Use Different Models**
-If you have access to different models, override them:
-```bash
-export EMBEDDING_MODEL='cohere.embed-english-v3'
-export VECTOR_DIMENSIONS='1024'
-./scripts/deploy.sh dev
+./scripts/check-model-access.sh
+# ✅ Should show: "All required models are accessible!"
 ```
 
 #### **🔑 AWS Permissions**
 
-Your AWS user/role needs these permissions:
-```json
-{
-  "Version": "2012-10-17", 
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "bedrock:*",
-        "s3:*", 
-        "opensearch-serverless:*",
-        "iam:*",
-        "lambda:*",
-        "apigateway:*",
-        "cloudformation:*",
-        "ssm:*",
-        "kms:*"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
+Your AWS user needs these key permissions:
+- `bedrock:*` - For AI models and knowledge base
+- `s3:*` - For document storage
+- `opensearch-serverless:*` - For vector database
+- `iam:*`, `lambda:*`, `cloudformation:*` - For infrastructure
+
+**Quick Permission Check**:
+```bash
+# Test if you have required permissions
+aws bedrock list-foundation-models --region us-east-1 > /dev/null && echo "✅ Bedrock OK" || echo "❌ Need Bedrock permissions"
+aws s3 ls > /dev/null && echo "✅ S3 OK" || echo "❌ Need S3 permissions"
 ```
 
-### 1-Minute Deployment
+### 🚀 Deploy in 1 Minute
 
 ```bash
 # 1. Clone and setup
-git clone https://github.com/matoblac/rag-demo-cdk.git
+git clone <your-repo-url>
 cd rag-demo-cdk
 
-# 2. Check Bedrock model access (CRITICAL STEP!)
+# 2. Quick permission and model check
 ./scripts/check-model-access.sh
 
-# If models aren't accessible, go to:
-# https://console.aws.amazon.com/bedrock/ → Model access → Request access
+# 3. Get your IP for security (restricts access to you only)
+export ALLOWED_IPS='["$(curl -s ifconfig.me)/32"]'
 
-# 3. Get your IP and set security restriction
-./scripts/get-my-ip.sh
-export ALLOWED_IPS='["YOUR_IP/32"]'  # Replace with your actual IP
-
-# 4. Deploy to development
+# 4. One-command deployment to development environment
 ./scripts/deploy.sh dev
 
-# 5. Access your RAG demo at the provided URL!
+# 🎉 Done! The script will output your RAG chat URL
 ```
 
-### **Secure Production Deployment**
+**What Just Happened?**
+1. Created a secure S3 bucket for your documents
+2. Set up a vector database for AI search
+3. Created a Bedrock Knowledge Base for RAG
+4. Deployed a beautiful Streamlit chat interface
+5. All resources are tagged and monitored
 
-**⚠️ SECURITY WARNING**: The frontend is publicly accessible by default! For production, restrict access to your IP:
+### 🔐 Production Deployment
+
+For production, add proper security:
 
 ```bash
-# 1. Get your current IP address
-./scripts/get-my-ip.sh
+# 1. Set your company's allowed IP addresses
+export ALLOWED_IPS='["203.0.113.0/24", "198.51.100.50/32"]'  # Replace with actual IPs
 
-# 2. Set IP restriction (replace with your actual IP)
-export ALLOWED_IPS='["1.2.3.4/32"]'
-
-# 3. Deploy to production with IP restriction
+# 2. Deploy to production environment
 ./scripts/deploy.sh prod
 
-# ✅ Now only YOUR IP can access the frontend!
+# 3. The URL will be restricted to your specified IPs only
 ```
 
-**IP Restriction Examples**:
-- Single IP: `["1.2.3.4/32"]`
-- Multiple IPs: `["1.2.3.4/32", "5.6.7.8/32"]`
-- IP range/subnet: `["192.168.1.0/24"]`
-- Office + Home: `["203.0.113.0/24", "198.51.100.50/32"]`
+## Architecture Overview
 
-### Detailed Deployment
-
-```bash
-# Install dependencies
-npm install
-pip install -r frontend/requirements.txt
-
-# Bootstrap CDK (one-time per account/region)
-cdk bootstrap
-
-# Deploy storage (persistent - safe to keep)
-cdk deploy RagDemoStorageStack-dev
-
-# Deploy infrastructure (disposable - iterate rapidly)
-cdk deploy RagDemoInfrastructureStack-dev
-
-# Deploy frontend
-cdk deploy RagDemoFrontendStack-dev
-
-# Upload sample documents
-aws s3 sync frontend/assets/sample-documents/ s3://your-bucket-name/documents/
-
-# Start ingestion job
-python scripts/trigger-ingestion.py --environment dev
 ```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Documents     │    │   AI Processing  │    │   User Access   │
+│                 │    │                  │    │                 │
+│  📁 S3 Bucket   │───▶│  🤖 Bedrock KB   │───▶│  💬 Streamlit   │
+│  🔐 Encrypted   │    │  🔍 Vector DB    │    │  🌐 Web UI      │
+│  🔄 Versioned   │    │  ⚡ Lambda Fns   │    │  🔒 IP Restricted│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### AWS Services Used
+
+| Service | Purpose | Why We Use It |
+|---------|---------|---------------|
+| **Amazon Bedrock** | AI/ML foundation models | Provides Claude/Titan models without managing infrastructure |
+| **Bedrock Knowledge Base** | RAG orchestration | Handles document ingestion, chunking, and retrieval |
+| **OpenSearch Serverless** | Vector database | Stores document embeddings for semantic search |
+| **S3** | Document storage | Durable, versioned storage for source documents |
+| **Lambda** | Serverless compute | Handles document processing and API endpoints |
+| **Streamlit** | Web frontend | Rapid development of interactive chat interface |
+| **CloudWatch** | Monitoring | Tracks performance, costs, and system health |
 
 ## Project Structure
 
 ```
 rag-demo-cdk/
-├──  Infrastructure (CDK)
-│   ├── bin/rag-demo-cdk.ts          #  CDK app entry point
+│
+├── 🏗️ Infrastructure (CDK TypeScript)
+│   ├── bin/rag-demo-cdk.ts              # CDK app entry point
 │   ├── lib/
 │   │   ├── stacks/
-│   │   │   ├── storage-stack.ts      # Persistent S3 resources
-│   │   │   ├── infrastructure-stack.ts # Disposable infrastructure
-│   │   │   └── frontend-stack.ts     # Streamlit deployment
+│   │   │   ├── storage-stack.ts          # Persistent S3 resources
+│   │   │   ├── infrastructure-stack.ts   # Disposable AI infrastructure
+│   │   │   └── frontend-stack.ts         # Streamlit deployment
 │   │   ├── constructs/
-│   │   │   ├── persistent-storage.ts # S3 bucket with protection
-│   │   │   ├── vector-database.ts    # OpenSearch Serverless
-│   │   │   ├── knowledge-base.ts     # Bedrock KB configuration
-│   │   │   └── monitoring.ts         # CloudWatch dashboards
+│   │   │   ├── vector-database.ts        # OpenSearch Serverless setup
+│   │   │   ├── knowledge-base.ts         # Bedrock KB configuration
+│   │   │   └── monitoring.ts             # CloudWatch dashboards
 │   │   └── utils/
-│   │       ├── config.ts             # Environment configuration
-│   │       └── helpers.ts            # Common utilities
+│   │       ├── config.ts                 # Environment configuration
+│   │       └── helpers.ts                # Common utilities
 │   
-├── Frontend (Streamlit)
-│   ├── app.py                        # Main Streamlit application
+├── 💻 Frontend (Python Streamlit)
+│   ├── app.py                            # Main Streamlit application
 │   ├── components/
-│   │   ├── chat_interface.py         # Chat UI components
-│   │   ├── document_manager.py       # Document upload/management
-│   │   ├── analytics.py              # Usage analytics
-│   │   └── system_status.py          # System health monitoring
+│   │   └── chat_interface.py             # Chat UI with citations
 │   ├── utils/
-│   │   ├── bedrock_client.py         # AWS Bedrock integration
-│   │   └── config_loader.py          # Load CDK outputs
-│   └── assets/
-│       └── sample-documents/         # Initial knowledge base content
+│   │   ├── bedrock_client.py             # AWS Bedrock integration
+│   │   └── config_loader.py              # Load infrastructure outputs
+│   └── requirements.txt                  # Python dependencies
 │
-├── Scripts & Automation
-│   ├── deploy.sh                     # Main deployment script
-│   ├── check-model-access.sh         # Verify Bedrock model access
-│   └── get-my-ip.sh                  # Get current IP for security
+├── 🛠️ Scripts & Automation
+│   ├── deploy.sh                         # Main deployment orchestration
+│   ├── check-model-access.sh             # Verify Bedrock model access
+│   └── get-my-ip.sh                      # Get current IP for security
 │
-├── Documentation
-│   ├── docs/
-│   │   ├── DEPLOYMENT.md            # Deployment guide
-│   │   ├── ARCHITECTURE.md          # Architecture deep-dive
-│   │   └── TROUBLESHOOTING.md       # Common issues
-│   └── README.md                    # This file
+├── 📚 Documentation
+│   └── docs/                             # Comprehensive guides
 │
-└── Configuration
-    ├── cdk.json                     # CDK configuration
-    ├── package.json                 # Node.js dependencies
-    ├── requirements.txt             # Python dependencies
-    └── tsconfig.json               # TypeScript configuration
+└── ⚙️ Configuration
+    ├── cdk.json                          # CDK settings
+    ├── package.json                      # Node.js dependencies
+    └── tsconfig.json                     # TypeScript configuration
 ```
 
 ## Key Features
 
-### Persistent Document Storage
-- **Protected S3 Bucket**: Survives infrastructure teardowns
-- **Cross-region Replication**: Automatic backup to different region
-- **Versioning**: Track document changes over time
-- **Lifecycle Policies**: Automatic cost optimization
-- **Encryption**: KMS encryption at rest and in transit
+### 🔒 Enterprise Security
+- **KMS Encryption**: All data encrypted at rest and in transit
+- **IP Restrictions**: Control who can access the system
+- **IAM Roles**: Least-privilege access controls
+- **VPC Security**: Network isolation for sensitive workloads
 
-### Rapid Infrastructure Iteration
-- **Disposable Resources**: Rebuild OpenSearch, Bedrock KB in minutes
+### 📊 Production Monitoring
+- **Real-time Dashboards**: System health and performance metrics
+- **Cost Tracking**: Monitor AWS spending by component
+- **Usage Analytics**: Query patterns and user behavior
+- **Automated Alerts**: Get notified of issues before users do
+
+### 🚀 Developer Experience
+- **One-Command Deploy**: Get running in under 5 minutes
+- **Hot Reloading**: Rapid iteration on frontend changes
 - **Environment Isolation**: Separate dev/staging/prod deployments
-- **Infrastructure as Code**: Rebuild entire stack quickly with CDK
-- **Cost Optimization**: Intelligent scaling and resource management
+- **Infrastructure as Code**: Version control your entire stack
 
-### Production-Ready Frontend
-- **Multi-page Streamlit App**: Chat, Document Management, Analytics
-- **Real-time Status**: Infrastructure health monitoring
-- **Advanced Chat Features**: 
-  - Source citations with confidence scores
-  - Message regeneration and feedback
-  - Model selection and parameter tuning
-  - Conversation export/import
-- **Document Management**: 
-  - Drag-and-drop upload
-  - Bulk operations
-  - Format validation
-  - Ingestion monitoring
+### 💡 Advanced RAG Features
+- **Source Citations**: Every answer shows exactly where it came from
+- **Confidence Scores**: Know how certain the AI is about answers
+- **Multi-Model Support**: Switch between different AI models
+- **Document Versioning**: Track changes to your knowledge base
+- **Bulk Operations**: Upload and manage hundreds of documents
 
-### Comprehensive Monitoring
-- **CloudWatch Dashboards**: System metrics and KPIs
-- **Custom Alarms**: Automated alerting for issues
-- **Usage Analytics**: Query patterns and performance
-- **Health Scoring**: Overall system health assessment
+## Using Your RAG System
 
-## Contributing
+### Adding Documents
 
-### Development Setup
+> **📋 Note**: This demo doesn't include a document management interface. You'll see which documents are used when they appear as sources in chat responses, but there's no UI to browse all uploaded documents. See the [Roadmap](Documentation/docs/ROADMAP.md) for planned document management features.
+
+**Option 1: S3 Direct Upload** (Primary Method)
 ```bash
-# Fork and clone the repository
-git clone https://github.com/your-username/rag-demo-cdk.git
-cd rag-demo-cdk
+# Upload a single document
+aws s3 cp my-document.pdf s3://your-bucket-name/documents/
 
-# Create feature branch
-git checkout -b feature/your-feature-name
+# Upload entire folder (bulk upload)
+aws s3 sync ./my-documents/ s3://your-bucket-name/documents/
 
-# Install dependencies
-npm install
-pip install -r requirements.txt
+# Verify upload
+aws s3 ls s3://your-bucket-name/documents/ --recursive
 
-# Run tests
-npm test
-pytest
+# Bedrock will automatically process new documents
+```
 
-# Deploy to dev environment for testing
+**Option 2: AWS Console Upload**
+1. Go to AWS S3 Console
+2. Navigate to your documents bucket  
+3. Upload files to the `documents/` folder
+4. Bedrock Knowledge Base auto-processes new files
+
+**Supported Formats**: PDF, Word, PowerPoint, Text, Markdown, HTML
+
+**Document Visibility**: Documents will appear as **source citations** in chat responses when relevant to your questions. To see all uploaded documents, use AWS CLI or S3 Console.
+
+### Chatting with Documents
+
+1. **Ask Questions**: Type natural language questions about your documents
+2. **Review Sources**: Click on citations to see original document excerpts  
+3. **Adjust Settings**: Change AI model, temperature, and response length
+4. **Export Conversations**: Save important Q&A sessions
+
+**Example Queries**:
+- "What are the main security requirements in our API documentation?"
+- "Summarize the key points from the Q3 financial report"
+- "How do I troubleshoot database connection issues according to our runbook?"
+
+## Development Workflow
+
+### Local Development
+```bash
+# 1. Make changes to frontend
+cd frontend/
+streamlit run app.py
+
+# 2. Test changes locally with deployed backend
+export AWS_REGION=us-east-1
+export KNOWLEDGE_BASE_ID=your-kb-id  # From CDK outputs
+
+# 3. Deploy changes
 ./scripts/deploy.sh dev
 ```
 
-### Code Quality
+### Adding New Features
 ```bash
-# Lint TypeScript
-npm run lint
+# 1. Create feature branch
+git checkout -b feature/new-chat-feature
 
-# Format code
-npm run format
+# 2. Develop and test locally
+npm run test          # CDK tests
+pytest frontend/      # Python tests
 
-# Type checking
-npm run type-check
+# 3. Deploy to dev environment
+./scripts/deploy.sh dev
 
-# Python linting
-flake8 frontend/
-black frontend/
+# 4. Create pull request when ready
 ```
 
+## Cost Management
 
+**Typical Monthly Costs** (estimated):
+- **Development**: $20-50/month (light usage)
+- **Production**: $100-500/month (depends on query volume)
 
+**Cost Breakdown**:
+- Bedrock Knowledge Base: $0.10 per 1K documents ingested
+- Bedrock Model Usage: $0.0008 per 1K input tokens, $0.024 per 1K output tokens
+- OpenSearch Serverless: ~$300/month for always-on collection
+- S3 Storage: $0.023 per GB per month
+- Lambda: First 1M requests free, then $0.20 per 1M requests
 
-## Support
+**Cost Optimization Tips**:
+- Use development environment for testing (tears down easily)
+- Monitor usage in CloudWatch dashboards
+- Set up billing alerts
+- Review the [Cost Optimization Guide](Documentation/docs/COST.md)
 
-- **Issues**: [GitHub Issues](https://github.com/matoblac/rag-demo-cdk/issues)
+## Troubleshooting
+
+### Common Issues
+
+**❌ "Access denied for model amazon.titan-embed-text-v1"**
+```bash
+# Solution: Request model access in Bedrock console
+./scripts/check-model-access.sh
+# Then go to: https://console.aws.amazon.com/bedrock/ → Model access
+```
+
+**❌ "Cannot assume role for CDK deployment"**  
+```bash
+# Solution: Bootstrap CDK in your account/region
+cdk bootstrap aws://ACCOUNT-ID/REGION
+```
+
+**❌ "Streamlit app shows 'Configuration not found'"**
+```bash
+# Solution: Deploy infrastructure stack first
+./scripts/deploy.sh dev
+# Frontend depends on infrastructure outputs
+```
+
+**❌ "Documents uploaded but not searchable"**
+```bash
+# Solution: Check ingestion job status in AWS Console
+# Go to: AWS Console → Bedrock → Knowledge bases → Your KB → Ingestion jobs
+# Note: Demo doesn't include ingestion status UI (see Roadmap)
+```
+
+**❌ "Can't see my uploaded documents in the interface"**
+```bash
+# Expected behavior: Demo has no document management UI
+# To verify uploads: aws s3 ls s3://your-bucket/documents/ --recursive
+# Documents appear as sources when relevant to chat queries
+# See Roadmap for planned document management features
+```
+
+For more issues, see [Troubleshooting Guide](Documentation/docs/TROUBLESHOOTING.md).
+
+## Contributing
+
+### Getting Started
+```bash
+# 1. Fork the repository
+# 2. Clone your fork
+git clone https://github.com/YOUR-USERNAME/rag-demo-cdk.git
+cd rag-demo-cdk
+
+# 3. Install dependencies
+npm install
+pip install -r frontend/requirements.txt
+
+# 4. Create feature branch
+git checkout -b feature/your-feature-name
+
+# 5. Deploy to your dev environment
+./scripts/deploy.sh dev
+```
+
+### Code Quality Standards
+```bash
+# TypeScript linting and formatting
+npm run lint
+npm run format
+npm run type-check
+
+# Python code quality
+cd frontend/
+black .
+flake8 .
+pytest
+```
+
+### Pull Request Process
+1. Create feature branch from `main`
+2. Make changes with tests
+3. Update documentation if needed
+4. Deploy and test in dev environment
+5. Create PR with clear description
+6. Address review feedback
+7. Merge after approval
+
+## Support & Community
+
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/your-org/rag-demo-cdk/issues)
+- **💡 Feature Requests**: [GitHub Discussions](https://github.com/your-org/rag-demo-cdk/discussions)
+- **📖 Documentation**: [Project Wiki](https://github.com/your-org/rag-demo-cdk/wiki)
+- **💬 Questions**: Use GitHub Discussions or create an issue
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with [AWS CDK](https://aws.amazon.com/cdk/) for infrastructure as code
+- Powered by [Amazon Bedrock](https://aws.amazon.com/bedrock/) for AI capabilities  
+- Frontend created with [Streamlit](https://streamlit.io/) for rapid development
+- Uses [OpenSearch Serverless](https://aws.amazon.com/opensearch-service/features/serverless/) for vector search
 
 ---
 
 <div align="center">
-  <b>Built with ❤️ using AWS CDK</b><br>
-  <i>Enterprise-ready RAG for the modern cloud</i>
+  <b>🚀 Ready to build your own ChatGPT for documents?</b><br>
+  <i>Deploy in 5 minutes with one command!</i><br><br>
+  <code>./scripts/deploy.sh dev</code>
 </div> 

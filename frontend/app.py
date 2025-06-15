@@ -16,10 +16,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
 
 # Import components
 from components.chat_interface import ChatInterface
-from components.document_manager import DocumentManager
-from components.analytics import Analytics
-from components.system_status import SystemStatus
-from components.settings import Settings
+# Note: Other components planned for future releases (see Documentation/docs/ROADMAP.md)
+# from components.document_manager import DocumentManager
+# from components.analytics import Analytics  
+# from components.system_status import SystemStatus
+# from components.settings import Settings
 from utils.config_loader import ConfigLoader
 from utils.bedrock_client import BedrockClient
 
@@ -115,10 +116,11 @@ class RAGDemoApp:
         
         # Initialize components
         self.chat_interface = ChatInterface(self.bedrock_client, self.config)
-        self.document_manager = DocumentManager(self.config)
-        self.analytics = Analytics(self.config)
-        self.system_status = SystemStatus(self.config)
-        self.settings = Settings(self.config)
+        # Note: Other components planned for future releases (see Documentation/docs/ROADMAP.md)
+        # self.document_manager = DocumentManager(self.config)
+        # self.analytics = Analytics(self.config)
+        # self.system_status = SystemStatus(self.config)
+        # self.settings = Settings(self.config)
 
     def init_session_state(self):
         """Initialize Streamlit session state variables"""
@@ -158,7 +160,8 @@ class RAGDemoApp:
             """, unsafe_allow_html=True)
             
             # Navigation
-            pages = ["Chat", "Documents", "Analytics", "System Status", "Settings"]
+            pages = ["Chat"]  # Demo scope - see ROADMAP.md for planned features
+            planned_pages = ["Documents", "Analytics", "System Status", "Settings"]
             
             for page in pages:
                 if st.button(
@@ -169,6 +172,17 @@ class RAGDemoApp:
                 ):
                     st.session_state.current_page = page
                     st.rerun()
+            
+            # Show planned features
+            st.markdown("**🚧 Planned Features:**")
+            for page in planned_pages:
+                st.button(
+                    f"🔜 {page}", 
+                    key=f"planned_{page}",
+                    use_container_width=True,
+                    disabled=True,
+                    help="Planned for future release - see Documentation/docs/ROADMAP.md"
+                )
             
             st.divider()
             
@@ -243,29 +257,59 @@ class RAGDemoApp:
         """Render the document management page"""
         st.markdown('<h1 class="main-header">📚 Document Management</h1>', unsafe_allow_html=True)
         
-        # Document manager
-        self.document_manager.render()
+        # Placeholder for future implementation
+        st.info("🚧 **Coming Soon!** Document management interface is planned for a future release.")
+        st.markdown("**Planned Features:**")
+        st.markdown("- 📋 List all documents in Knowledge Base")
+        st.markdown("- 📊 Document ingestion status monitoring") 
+        st.markdown("- 🗑️ Upload, delete, and manage documents")
+        st.markdown("- 📈 Document usage analytics")
+        st.markdown("\n**For now, use AWS CLI or S3 Console to manage documents.**")
+        st.markdown("See [Roadmap](Documentation/docs/ROADMAP.md) for details.")
 
     def render_analytics_page(self):
         """Render the analytics dashboard page"""
         st.markdown('<h1 class="main-header">📊 Analytics Dashboard</h1>', unsafe_allow_html=True)
         
-        # Analytics dashboard
-        self.analytics.render()
+        # Placeholder for future implementation
+        st.info("🚧 **Coming Soon!** Usage analytics dashboard is planned for a future release.")
+        st.markdown("**Planned Features:**")
+        st.markdown("- 📈 Query frequency and patterns")
+        st.markdown("- 📚 Document popularity rankings")
+        st.markdown("- ⚡ Performance metrics and trends")
+        st.markdown("- 💰 Cost tracking and optimization")
+        st.markdown("- 👥 User behavior insights")
+        st.markdown("\nSee [Roadmap](Documentation/docs/ROADMAP.md) for details.")
 
     def render_system_status_page(self):
         """Render the system status page"""
         st.markdown('<h1 class="main-header">⚡ System Status</h1>', unsafe_allow_html=True)
         
-        # System status
-        self.system_status.render()
+        # Placeholder for future implementation
+        st.info("🚧 **Coming Soon!** System monitoring interface is planned for a future release.")
+        st.markdown("**Planned Features:**")
+        st.markdown("- 🔍 Real-time infrastructure health")
+        st.markdown("- 📊 CloudWatch metrics integration")
+        st.markdown("- 🔔 Automated alerts and notifications")
+        st.markdown("- 🏥 System diagnostics and troubleshooting")
+        st.markdown("- 📈 Capacity monitoring and scaling")
+        st.markdown("\n**For now, check AWS Console for system status.**")
+        st.markdown("See [Roadmap](Documentation/docs/ROADMAP.md) for details.")
 
     def render_settings_page(self):
         """Render the settings page"""
         st.markdown('<h1 class="main-header">⚙️ Settings</h1>', unsafe_allow_html=True)
         
-        # Settings
-        self.settings.render()
+        # Placeholder for future implementation
+        st.info("🚧 **Coming Soon!** Advanced settings interface is planned for a future release.")
+        st.markdown("**Planned Features:**")
+        st.markdown("- 👤 User preferences and themes")
+        st.markdown("- 🤖 Model configuration and fine-tuning")
+        st.markdown("- 🔐 Access controls and permissions")
+        st.markdown("- 🌐 API management and rate limiting")
+        st.markdown("- 📊 Knowledge Base configuration")
+        st.markdown("\n**Current settings can be adjusted in the chat sidebar.**")
+        st.markdown("See [Roadmap](Documentation/docs/ROADMAP.md) for details.")
 
     def render_footer(self):
         """Render the footer"""
@@ -279,7 +323,11 @@ class RAGDemoApp:
                 <p>
                     Built with ❤️ using AWS CDK | 
                     <a href="https://github.com/your-org/rag-demo" target="_blank">View Source</a> | 
-                    <a href="https://docs.aws.amazon.com/bedrock/" target="_blank">Documentation</a>
+                    <a href="Documentation/docs/ROADMAP.md" target="_blank">🗺️ Roadmap</a>
+                </p>
+                <p style="font-size: 0.8rem; color: #999;">
+                    Demo scope: Chat interface with RAG capabilities. 
+                    Document management, analytics, and system monitoring coming soon!
                 </p>
             </div>
         """, unsafe_allow_html=True)
@@ -287,11 +335,13 @@ class RAGDemoApp:
     def run(self):
         """Main application run method"""
         try:
-            # Check system health on startup
+            # Basic health check (full system monitoring planned for future release)
             if st.session_state.system_health['last_check'] is None:
-                with st.spinner("Checking system health..."):
-                    health_status = self.system_status.check_system_health()
-                    st.session_state.system_health.update(health_status)
+                st.session_state.system_health.update({
+                    'status': 'healthy',
+                    'last_check': 'Demo mode - full monitoring coming soon',
+                    'metrics': {}
+                })
             
             # Render sidebar
             self.render_sidebar()
