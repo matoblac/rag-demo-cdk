@@ -40,6 +40,7 @@ export interface Config {
   frontendDomain?: string;
   enableCustomDomain: boolean;
   certificateArn?: string;
+  allowedIps?: string[]; // IP addresses/CIDR blocks allowed to access frontend
   
   // Data processing
   enableOcr: boolean;
@@ -148,6 +149,7 @@ export function getConfig(environment: string, region: string = 'us-east-1'): Co
     frontendDomain: process.env.FRONTEND_DOMAIN,
     certificateArn: process.env.CERTIFICATE_ARN,
     kmsKeyId: process.env.KMS_KEY_ID,
+    allowedIps: process.env.ALLOWED_IPS ? JSON.parse(process.env.ALLOWED_IPS) : undefined,
   };
   
   // Environment-specific overrides from env vars

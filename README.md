@@ -33,12 +33,39 @@ A **production-ready** Retrieval Augmented Generation (RAG) demo using AWS CDK w
 # Clone and setup
 git clone https://github.com/matoblac/rag-demo-cdk.git
 cd rag-demo-cdk
+./scripts/get-my-ip.sh
 
-# Deploy to development
+# 2. Set IP restriction (replace with your actual IP)
+export ALLOWED_IPS='["YOUR_IP/32"]'
+
+# 3. Deploy to development
 ./scripts/deploy.sh dev
 
 # Access your RAG demo at the provided URL!
 ```
+
+### 🔒 **Secure Production Deployment**
+
+**⚠️ SECURITY WARNING**: The frontend is publicly accessible by default! For production, restrict access to your IP:
+
+```bash
+# 1. Get your current IP address
+./scripts/get-my-ip.sh
+
+# 2. Set IP restriction (replace with your actual IP)
+export ALLOWED_IPS='["1.2.3.4/32"]'
+
+# 3. Deploy to production with IP restriction
+./scripts/deploy.sh prod
+
+# ✅ Now only YOUR IP can access the frontend!
+```
+
+**IP Restriction Examples**:
+- Single IP: `["1.2.3.4/32"]`
+- Multiple IPs: `["1.2.3.4/32", "5.6.7.8/32"]`
+- IP range/subnet: `["192.168.1.0/24"]`
+- Office + Home: `["203.0.113.0/24", "198.51.100.50/32"]`
 
 ### Detailed Deployment
 

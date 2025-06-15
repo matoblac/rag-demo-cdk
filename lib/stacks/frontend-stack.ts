@@ -77,6 +77,53 @@ export class FrontendStack extends cdk.Stack {
     return bucket;
   }
 
+  private createIpRestrictedPolicy(config: Config): iam.PolicyDocument {
+    // Get allowed IP addresses from config
+    const allowedIps = config.allowedIps || ['0.0.0.0/0']; // Default to all IPs if not specified
+    
+    // If all IPs are allowed, don't create restrictive policy
+    if (allowedIps.includes('0.0.0.0/0')) {
+      return new iam.PolicyDocument({
+        statements: [
+          new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            principals: [new iam.AnyPrincipal()],
+            actions: ['execute-api:Invoke'],
+            resources: ['*'],
+          }),
+        ],
+      });
+    }
+    
+    // Create IP-restricted policy - ALLOW only from specified IPs
+    return new iam.PolicyDocument({
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          principals: [new iam.AnyPrincipal()],
+          actions: ['execute-api:Invoke'],
+          resources: ['*'],
+          conditions: {
+            IpAddress: {
+              'aws:SourceIp': allowedIps,
+            },
+          },
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.DENY,
+          principals: [new iam.AnyPrincipal()],
+          actions: ['execute-api:Invoke'],
+          resources: ['*'],
+          conditions: {
+            NotIpAddress: {
+              'aws:SourceIp': allowedIps,
+            },
+          },
+        }),
+      ],
+    });
+  }
+
   private createStreamlitLambda(
     config: Config,
     knowledgeBaseId: string,
@@ -162,7 +209,7 @@ export class FrontendStack extends cdk.Stack {
       ],
     }));
 
-    // Create API Gateway
+    // Create API Gateway with IP restriction
     const api = new apigateway.RestApi(this, 'StreamlitApi', {
       restApiName: generateResourceName(config, 'streamlit-api'),
       description: createResourceDescription(config, 'Streamlit API', 'RAG demo frontend API'),
@@ -172,6 +219,8 @@ export class FrontendStack extends cdk.Stack {
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key'],
       },
+      // Add resource policy for IP-based access control
+      policy: this.createIpRestrictedPolicy(config),
     });
 
     // Add proxy integration

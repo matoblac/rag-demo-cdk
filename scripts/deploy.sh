@@ -71,6 +71,35 @@ validate_inputs() {
         fi
     fi
     
+    # Security validation for production
+    if [[ "$ENVIRONMENT" == "prod" ]] && [[ -z "$ALLOWED_IPS" ]]; then
+        log_warning "🔒 SECURITY WARNING: Deploying to production without IP restrictions!"
+        log_warning "The frontend will be accessible from ANY IP address on the internet."
+        log_warning ""
+        log_warning "To restrict access to your IP only:"
+        log_warning "1. Run: ./scripts/get-my-ip.sh"
+        log_warning "2. Set: export ALLOWED_IPS='[\"YOUR_IP/32\"]'"
+        log_warning "3. Re-run this deployment"
+        log_warning ""
+        read -p "Continue with OPEN ACCESS? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Deployment cancelled. Please set ALLOWED_IPS and try again."
+            exit 1
+        fi
+    fi
+    
+    # Show IP restriction status
+    if [[ ! -z "$ALLOWED_IPS" ]]; then
+        log_success "✅ IP restrictions configured: $ALLOWED_IPS"
+    else
+        if [[ "$ENVIRONMENT" == "dev" ]]; then
+            log_info "ℹ️  Open access (no IP restrictions) - OK for development"
+        else
+            log_warning "⚠️  Open access (no IP restrictions) - Consider security implications"
+        fi
+    fi
+    
     log_success "Validation complete"
 }
 
@@ -484,10 +513,22 @@ if [ $# -eq 0 ]; then
     echo "  region         AWS region (default: us-east-1)"
     echo "  aws-profile    AWS CLI profile (default: default)"
     echo ""
+    echo "🔒 Security: Restrict Frontend Access to Your IP"
+    echo "  Set ALLOWED_IPS environment variable to restrict access:"
+    echo "  export ALLOWED_IPS='[\"YOUR_IP/32\"]'     # Single IP"
+    echo "  export ALLOWED_IPS='[\"1.2.3.4/32\", \"5.6.7.8/24\"]'  # Multiple IPs/ranges"
+    echo ""
     echo "Examples:"
-    echo "  $0 dev"
-    echo "  $0 staging us-west-2"
-    echo "  $0 prod us-east-1 production"
+    echo "  $0 dev                           # Deploy with open access (dev only)"
+    echo "  $0 staging us-west-2             # Deploy to staging"
+    echo "  $0 prod us-east-1 production     # Deploy to production"
+    echo ""
+    echo "Security Examples:"
+    echo "  ./scripts/get-my-ip.sh                    # Get your current IP"
+    echo "  export ALLOWED_IPS='[\"1.2.3.4/32\"]'    # Set IP restriction"
+    echo "  $0 prod                                   # Deploy with IP restriction"
+    echo ""
+    echo "⚠️  For production deployments, IP restriction is HIGHLY recommended!"
     echo ""
     exit 1
 fi
