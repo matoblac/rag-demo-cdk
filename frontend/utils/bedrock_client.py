@@ -103,7 +103,7 @@ class BedrockClient:
         self, 
         query: str, 
         context: List[str], 
-        model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0",
+        model_id: str = "anthropic.claude-3-5-sonnet-20240620-v1:0",
         temperature: float = 0.7,
         max_tokens: int = 4096
     ) -> Dict[str, Any]:
@@ -226,7 +226,7 @@ Answer:"""
         self, 
         query: str, 
         max_results: int = 5,
-        model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0",
+        model_id: str = "anthropic.claude-3-5-sonnet-20240620-v1:0",
         temperature: float = 0.7,
         max_tokens: int = 4096,
         search_type: str = "HYBRID"

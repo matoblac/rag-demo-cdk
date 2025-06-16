@@ -48,9 +48,9 @@ class ConfigLoader:
             'documentsBucket': os.environ.get('DOCUMENTS_BUCKET'),
             'region': self.region,
             'environment': self.environment,
-            'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'amazon.titan-embed-text-v1'),
+            'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'amazon.titan-embed-text-v2:0'),
             'indexName': os.environ.get('INDEX_NAME', 'rag-documents'),
-            'vectorDimensions': int(os.environ.get('VECTOR_DIMENSIONS', '1536')),
+            'vectorDimensions': int(os.environ.get('VECTOR_DIMENSIONS', '1024')),
             'chunkSize': int(os.environ.get('CHUNK_SIZE', '1000')),
             'chunkOverlap': int(os.environ.get('CHUNK_OVERLAP', '200')),
             'maxDocumentSize': int(os.environ.get('MAX_DOCUMENT_SIZE', '50')),
@@ -154,7 +154,7 @@ class ConfigLoader:
         
         # Validate data types
         try:
-            config['vectorDimensions'] = int(config.get('vectorDimensions', 1536))
+            config['vectorDimensions'] = int(config.get('vectorDimensions', 1024))
             config['chunkSize'] = int(config.get('chunkSize', 1000))
             config['chunkOverlap'] = int(config.get('chunkOverlap', 200))
             config['maxDocumentSize'] = int(config.get('maxDocumentSize', 50))
@@ -162,7 +162,7 @@ class ConfigLoader:
             logger.error(f"Invalid configuration data types: {e}")
             # Set defaults
             config.update({
-                'vectorDimensions': 1536,
+                'vectorDimensions': 1024,
                 'chunkSize': 1000,
                 'chunkOverlap': 200,
                 'maxDocumentSize': 50,

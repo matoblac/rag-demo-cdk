@@ -241,7 +241,7 @@ export class KnowledgeBaseConstruct extends Construct {
         parsingConfiguration: {
           parsingStrategy: 'BEDROCK_FOUNDATION_MODEL',
           bedrockFoundationModelConfiguration: {
-            modelArn: `arn:aws:bedrock:${config.region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0`,
+            modelArn: `arn:aws:bedrock:${config.region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`,
             parsingPrompt: {
               parsingPromptText: `
 You are a document parser. Extract and structure the content from the following document.

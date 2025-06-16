@@ -111,8 +111,8 @@ aws configure
 
 **Required Models**:
 ```
-🔹 amazon.titan-embed-text-v1           (For document embeddings - REQUIRED)
-🔹 anthropic.claude-3-sonnet-20240229-v1:0  (For chat responses - REQUIRED)
+🔹 amazon.titan-embed-text-v2:0         (For document embeddings - REQUIRED)
+🔹 anthropic.claude-3-5-sonnet-20240620-v1:0  (For chat responses - REQUIRED)
 ```
 
 **How to Request Access**:
@@ -121,8 +121,8 @@ aws configure
 2. **Click "Model access"** in left sidebar
 3. **Click "Request model access"**
 4. **Check these models**:
-   - ✅ Amazon Titan Embed Text v1
-   - ✅ Anthropic Claude 3 Sonnet
+   - ✅ Amazon Titan Embed Text v2
+   - ✅ Anthropic Claude 3.5 Sonnet
 5. **Submit** (usually auto-approved instantly)
 
 **Verify Access**:
@@ -432,7 +432,7 @@ pytest frontend/      # Python tests
 
 ### Common Issues
 
-**❌ "Access denied for model amazon.titan-embed-text-v1"**
+**❌ "Access denied for model amazon.titan-embed-text-v2:0"**
 ```bash
 # Solution: Request model access in Bedrock console
 ./scripts/check-model-access.sh

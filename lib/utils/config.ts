@@ -60,14 +60,14 @@ const defaultConfig: Omit<Config, 'environment' | 'region' | 'bucketName' | 'col
   enableReplication: false,
   
   // Knowledge Base defaults
-  embeddingModel: 'amazon.titan-embed-text-v1',
+  embeddingModel: 'amazon.titan-embed-text-v2:0',
   chunkSize: 1000,
   chunkOverlap: 200,
   maxTokens: 4096,
   
   // OpenSearch defaults
   indexName: 'rag-documents',
-  vectorDimensions: 1536,
+  vectorDimensions: 1024,
   
   // Security defaults
   enableMfaDelete: false,
@@ -192,6 +192,7 @@ function validateConfig(config: Config): void {
   
   // Validate model compatibility
   const modelDimensions: Record<string, number> = {
+    'amazon.titan-embed-text-v2:0': 1024,
     'amazon.titan-embed-text-v1': 1536,
     'cohere.embed-english-v3': 1024,
     'cohere.embed-multilingual-v3': 1024,

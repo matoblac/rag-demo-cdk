@@ -156,7 +156,7 @@ def handler(event: Dict[str, Any], context) -> Dict[str, Any]:
             
         # Additional parameters
         max_results = body.get('max_results', 5)
-        model_id = body.get('model_id', 'anthropic.claude-3-sonnet-20240229-v1:0')
+        model_id = body.get('model_id', 'anthropic.claude-3-5-sonnet-20240620-v1:0')
         temperature = body.get('temperature', 0.7)
         
         # Query the Knowledge Base

@@ -18,8 +18,8 @@ PROFILE=${2:-default}
 
 # Required models
 REQUIRED_MODELS=(
-    "amazon.titan-embed-text-v1"
-    "anthropic.claude-3-sonnet-20240229-v1:0"
+    "amazon.titan-embed-text-v2:0"
+    "anthropic.claude-3-5-sonnet-20240620-v1:0"
 )
 
 OPTIONAL_MODELS=(

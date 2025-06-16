@@ -270,7 +270,7 @@ class ChatInterface:
                     
                     # Generate response
                     self._generate_response(question, **{
-                        'model_id': 'anthropic.claude-3-sonnet-20240229-v1:0',
+                        'model_id': 'anthropic.claude-3-5-sonnet-20240620-v1:0',
                         'max_results': 5,
                         'search_type': 'HYBRID',
                         'temperature': 0.7,
@@ -303,7 +303,7 @@ class ChatInterface:
                 result = self.bedrock_client.query_and_generate(
                     query=query,
                     max_results=kwargs.get('max_results', 5),
-                    model_id=kwargs.get('model_id', 'anthropic.claude-3-sonnet-20240229-v1:0'),
+                    model_id=kwargs.get('model_id', 'anthropic.claude-3-5-sonnet-20240620-v1:0'),
                     temperature=kwargs.get('temperature', 0.7),
                     max_tokens=kwargs.get('max_tokens', 4096),
                     search_type=kwargs.get('search_type', 'HYBRID')
@@ -359,7 +359,7 @@ class ChatInterface:
                 # Generate new response
                 self._generate_response(
                     user_message['content'],
-                    model_id='anthropic.claude-3-sonnet-20240229-v1:0',
+                    model_id='anthropic.claude-3-5-sonnet-20240620-v1:0',
                     max_results=5,
                     search_type='HYBRID',
                     temperature=0.7,
@@ -384,7 +384,7 @@ class ChatInterface:
             # Default models if none found
             if not text_models:
                 text_models = [
-                    'anthropic.claude-3-sonnet-20240229-v1:0',
+                    'anthropic.claude-3-5-sonnet-20240620-v1:0',
                     'anthropic.claude-3-haiku-20240307-v1:0',
                     'amazon.titan-text-express-v1'
                 ]
@@ -393,7 +393,7 @@ class ChatInterface:
             
         except Exception as e:
             logger.error(f"Error getting available models: {e}")
-            return ['anthropic.claude-3-sonnet-20240229-v1:0']
+            return ['anthropic.claude-3-5-sonnet-20240620-v1:0']
     
     def export_conversation(self) -> Dict[str, Any]:
         """Export the current conversation"""

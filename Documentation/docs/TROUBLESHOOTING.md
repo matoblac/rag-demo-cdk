@@ -1,3 +1,11 @@
+# Troubleshooting Guide
+
+This guide covers common issues and their solutions for the RAG Demo CDK project.
+
+## Model Access Issues
+
+# Error: Access denied for model amazon.titan-embed-text-v2:0
+
 ## Troubleshooting
 
 ### Common Issues

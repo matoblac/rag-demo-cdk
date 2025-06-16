@@ -10,11 +10,11 @@ When you deploy without setting any environment variables, these defaults are us
 
 ```typescript
 // AI & Knowledge Base
-embeddingModel: 'amazon.titan-embed-text-v1'    // Titan embeddings
+embeddingModel: 'amazon.titan-embed-text-v2:0'    // Titan embeddings V2
 chunkSize: 1000                                   // Document chunk size (chars)
 chunkOverlap: 200                                // Chunk overlap (chars)
 maxTokens: 4096                                  // Max tokens per chunk
-vectorDimensions: 1536                           // Vector dimensions
+vectorDimensions: 1024                           // Vector dimensions
 
 // Document Processing
 maxDocumentSize: 50                              // 50MB file size limit
@@ -99,7 +99,8 @@ export ALERT_EMAIL='admin@yourcompany.com'        # Alert email
 #### **Model Compatibility Matrix**
 ```typescript
 const modelDimensions = {
-  'amazon.titan-embed-text-v1': 1536,      // Default
+  'amazon.titan-embed-text-v2:0': 1024,    // Default (V2)
+  'amazon.titan-embed-text-v1': 1536,      // Legacy V1
   'cohere.embed-english-v3': 1024,         // Alternative
   'cohere.embed-multilingual-v3': 1024,    // Multi-language
 };
