@@ -226,7 +226,6 @@ export class KnowledgeBaseConstruct extends Construct {
         s3Configuration: {
           bucketArn: documentsBucket.bucketArn,
           inclusionPrefixes: ['documents/'],
-          exclusionPrefixes: ['documents/temp/', 'documents/.tmp/'],
         },
       },
       dataDeletionPolicy: 'RETAIN', // Keep vectors when source documents are deleted

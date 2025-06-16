@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
+import { IConstruct } from 'constructs';
 import { StorageStack } from '../lib/stacks/storage-stack';
 import { InfrastructureStack } from '../lib/stacks/infrastructure-stack';
 import { FrontendStack } from '../lib/stacks/frontend-stack';
@@ -77,11 +78,11 @@ new cdk.CfnOutput(app, 'Region', {
 
 // Aspects for additional validation and compliance
 cdk.Aspects.of(app).add({
-  visit(node: cdk.IConstruct) {
+  visit(node: IConstruct) {
     // Add environment validation
     if (cdk.Stack.isStack(node)) {
       const stack = node as cdk.Stack;
-      if (!stack.tags.hasTag('Environment')) {
+      if (!stack.tags.hasTags() || !stack.tags.renderTags()['Environment']) {
         stack.tags.setTag('Environment', environment);
       }
     }

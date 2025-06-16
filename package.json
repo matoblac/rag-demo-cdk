@@ -50,7 +50,6 @@
   "dependencies": {
     "aws-cdk-lib": "^2.100.0",
     "constructs": "^10.3.0",
-    "@aws-cdk/aws-opensearchserverless-alpha": "^2.100.0-alpha.0",
     "dotenv": "^16.3.1"
   },
   "engines": {

@@ -148,7 +148,6 @@ export class StorageStack extends cdk.Stack {
       encryptionKey: config.enableEncryption ? this.encryptionKey : undefined,
       encryption: config.enableEncryption ? s3.BucketEncryption.KMS : s3.BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
-      publicWriteAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: getRemovalPolicy(config, 'storage'),
       autoDeleteObjects: false, // Never auto-delete in storage stack
@@ -204,15 +203,13 @@ export class StorageStack extends cdk.Stack {
       ],
       
       // Intelligent tiering for automatic cost optimization
-      intelligentTieringConfigurations: [
-        {
-          id: 'EntireBucket',
-          status: s3.IntelligentTieringStatus.ENABLED,
-          optionalFields: [
-            s3.IntelligentTieringOptionalFields.BUCKET_KEY_STATUS,
-          ],
-        },
-      ],
+      // Note: Intelligent tiering configuration may not be available in all CDK versions
+      // intelligentTieringConfigurations: [
+      //   {
+      //     name: 'EntireBucket',
+      //     status: 'Enabled',
+      //   },
+      // ],
       
       // CORS configuration for web uploads
       cors: [
@@ -260,7 +257,6 @@ export class StorageStack extends cdk.Stack {
       encryptionKey: this.encryptionKey,
       encryption: s3.BucketEncryption.KMS,
       publicReadAccess: false,
-      publicWriteAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: getRemovalPolicy(config, 'storage'),
       autoDeleteObjects: false,
@@ -295,7 +291,6 @@ export class StorageStack extends cdk.Stack {
       bucketName: logsBucketName,
       encryption: s3.BucketEncryption.S3_MANAGED,
       publicReadAccess: false,
-      publicWriteAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Logs can be destroyed
       autoDeleteObjects: true,

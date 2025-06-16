@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
-import * as opensearchserverless from '@aws-cdk/aws-opensearchserverless-alpha';
+import * as opensearchserverless from 'aws-cdk-lib/aws-opensearchserverless';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';

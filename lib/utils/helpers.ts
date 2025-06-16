@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import { IConstruct } from 'constructs';
 import { Config } from './config';
 
 /**
@@ -123,8 +124,8 @@ export function isOpenSearchServerlessSupportedInRegion(region: string): boolean
 /**
  * Create conditional construct helper
  */
-export function createConditionalConstruct<T extends cdk.IConstruct>(
-  scope: cdk.IConstruct,
+export function createConditionalConstruct<T extends IConstruct>(
+  scope: IConstruct,
   id: string,
   condition: boolean,
   constructFactory: () => T

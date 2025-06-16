@@ -1,6 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as amplify from '@aws-cdk/aws-amplify-alpha';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
@@ -25,7 +24,6 @@ export interface FrontendStackProps extends cdk.StackProps {
 }
 
 export class FrontendStack extends cdk.Stack {
-  public readonly streamlitApp?: amplify.App;
   public readonly frontendBucket: s3.Bucket;
   public readonly frontendUrl: string;
 

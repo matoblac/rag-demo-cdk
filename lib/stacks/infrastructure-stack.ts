@@ -115,7 +115,9 @@ export class InfrastructureStack extends cdk.Stack {
         getSSMParameterName(config, 'encryption-key-id')
       );
       
-      return kms.Key.fromKeyId(this, 'ImportedEncryptionKey', keyId);
+      // Use fromKeyArn to import the key using ARN construction
+      const keyArn = `arn:aws:kms:${config.region}:${this.account}:key/${keyId}`;
+      return kms.Key.fromKeyArn(this, 'ImportedEncryptionKey', keyArn);
     } catch (error) {
       console.warn('Could not import encryption key from SSM, proceeding without encryption');
       return undefined;
