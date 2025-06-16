@@ -112,6 +112,9 @@ class ConfigLoader:
     
     def _validate_config(self, config: Dict[str, Any]) -> None:
         """Validate that required configuration is present"""
+        # Apply defaults for local development
+        self._apply_development_defaults(config)
+        
         required_fields = [
             'knowledgeBaseId',
             'region',
@@ -125,6 +128,29 @@ class ConfigLoader:
         
         if missing_fields:
             raise ValueError(f"Missing required configuration fields: {missing_fields}")
+    
+    def _apply_development_defaults(self, config: Dict[str, Any]) -> None:
+        """Apply default values for local development when infrastructure isn't deployed"""
+        
+        # Check if we're in local development mode (no Knowledge Base ID provided)
+        is_local_dev = not config.get('knowledgeBaseId') and not os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+        
+        if is_local_dev:
+            logger.warning("🛠️  Local development mode detected - using default values")
+            logger.warning("⚠️  Deploy infrastructure first for full functionality: ./scripts/deploy.sh dev")
+            
+            # Set development defaults
+            if not config.get('knowledgeBaseId'):
+                config['knowledgeBaseId'] = 'local-dev-placeholder-kb-id'
+                logger.warning("📋 Using placeholder Knowledge Base ID for local development")
+            
+            if not config.get('documentsBucket'):
+                config['documentsBucket'] = 'local-dev-placeholder-bucket'
+                logger.warning("📁 Using placeholder S3 bucket for local development")
+            
+            if not config.get('collectionEndpoint'):
+                config['collectionEndpoint'] = 'https://local-dev-placeholder.us-east-1.aoss.amazonaws.com'
+                logger.warning("🔍 Using placeholder OpenSearch endpoint for local development")
         
         # Validate data types
         try:

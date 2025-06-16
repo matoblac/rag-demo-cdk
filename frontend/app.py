@@ -37,68 +37,328 @@ st.set_page_config(
     }
 )
 
-# Custom CSS
+# Custom CSS - Bright, modern theme
 st.markdown("""
 <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Global theme overrides */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .main .block-container {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+    
+    /* Beautiful header with animated gradient */
     .main-header {
-        font-size: 2.5rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 3rem;
         font-weight: 700;
-        background: linear-gradient(90deg, #FF6B6B, #4ECDC4);
+        background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
+        background-size: 300% 300%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
         text-align: center;
         margin-bottom: 2rem;
+        animation: gradientShift 3s ease infinite;
+    }
+    
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* Sidebar styling */
+    .stSidebar > div:first-child {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        border-radius: 0 20px 20px 0;
     }
     
     .sidebar-content {
-        padding: 1rem;
+        padding: 1.5rem;
+        color: white;
     }
     
+    .sidebar-content h2 {
+        color: white !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar-content p {
+        color: rgba(255, 255, 255, 0.8) !important;
+    }
+    
+    /* Modern metric cards with glassmorphism */
     .metric-card {
-        background: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #4ECDC4;
-        margin: 0.5rem 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 1.5rem;
+        border-radius: 16px;
+        margin: 0.75rem 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Status indicators with glow effect */
     .status-indicator {
         display: inline-block;
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        margin-right: 8px;
+        margin-right: 10px;
+        box-shadow: 0 0 10px currentColor;
+        animation: pulse 2s infinite;
     }
     
-    .status-healthy { background-color: #4CAF50; }
-    .status-warning { background-color: #FF9800; }
-    .status-error { background-color: #F44336; }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.7; }
+        100% { opacity: 1; }
+    }
     
+    .status-healthy { 
+        background: linear-gradient(45deg, #4CAF50, #81C784);
+        box-shadow: 0 0 15px #4CAF50;
+    }
+    .status-warning { 
+        background: linear-gradient(45deg, #FF9800, #FFB74D);
+        box-shadow: 0 0 15px #FF9800;
+    }
+    .status-error { 
+        background: linear-gradient(45deg, #F44336, #E57373);
+        box-shadow: 0 0 15px #F44336;
+    }
+    
+    /* Chat container with modern design */
     .chat-container {
-        background: white;
-        border-radius: 10px;
-        padding: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin: 1rem 0;
-    }
-    
-    .document-upload-area {
-        border: 2px dashed #4ECDC4;
-        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
         padding: 2rem;
-        text-align: center;
-        background: #f8f9fa;
-        margin: 1rem 0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin: 1.5rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(15px);
     }
     
+    /* Document upload area with hover effects */
+    .document-upload-area {
+        border: 3px dashed #667eea;
+        border-radius: 20px;
+        padding: 3rem;
+        text-align: center;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        margin: 2rem 0;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .document-upload-area:hover {
+        border-color: #764ba2;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* Modern footer */
     .footer {
         margin-top: 3rem;
-        padding: 2rem;
-        background: #f8f9fa;
-        border-radius: 10px;
+        padding: 2.5rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 20px;
         text-align: center;
-        font-size: 0.9rem;
-        color: #666;
+        font-size: 0.95rem;
+        color: #2c3e50 !important;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+    
+    .footer p {
+        color: #2c3e50 !important;
+    }
+    
+    .footer a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+    
+    .footer a:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+    
+    /* Button styling improvements */
+    .stButton > button {
+        background: linear-gradient(45deg, #667eea, #764ba2) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 500 !important;
+        font-family: 'Inter', sans-serif !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    .stButton > button:active {
+        transform: translateY(0) !important;
+    }
+    
+    /* Disabled button styling */
+    .stButton > button:disabled {
+        background: linear-gradient(45deg, #ccc, #999) !important;
+        color: #666 !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    
+    /* Metrics styling */
+    .metric-container {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        backdrop-filter: blur(15px);
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-container:hover {
+        transform: translateY(-3px);
+    }
+    
+    /* Input field styling */
+    .stTextInput > div > div > input {
+        border-radius: 12px !important;
+        border: 2px solid #e0e0e0 !important;
+        padding: 0.75rem !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox > div > div {
+        border-radius: 12px !important;
+        border: 2px solid #e0e0e0 !important;
+    }
+    
+    /* Warning/info box improvements */
+    .stAlert {
+        border-radius: 16px !important;
+        border: none !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    /* Slider improvements */
+    .stSlider > div > div > div {
+        background: linear-gradient(45deg, #667eea, #764ba2) !important;
+    }
+    
+    /* Additional text contrast fixes for Streamlit components */
+    .stInfo, .stSuccess, .stWarning, .stError {
+        color: #2c3e50 !important;
+    }
+    
+    .stInfo p, .stSuccess p, .stWarning p, .stError p {
+        color: #2c3e50 !important;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* Ensure proper text contrast */
+    .main .block-container p,
+    .main .block-container div,
+    .main .block-container span,
+    .main .block-container li {
+        color: #2c3e50 !important;
+    }
+    
+    .main .block-container h1,
+    .main .block-container h2,
+    .main .block-container h3,
+    .main .block-container h4,
+    .main .block-container h5,
+    .main .block-container h6 {
+        color: #1a252f !important;
+    }
+    
+    /* Streamlit specific text fixes */
+    .stMarkdown p {
+        color: #2c3e50 !important;
+    }
+    
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
+        color: #1a252f !important;
+    }
+    
+    .stMarkdown li {
+        color: #2c3e50 !important;
+    }
+    
+    .stMarkdown strong {
+        color: #1a252f !important;
+    }
+    
+    /* Chat interface text */
+    .chat-container p,
+    .chat-container div,
+    .chat-container span {
+        color: #2c3e50 !important;
+    }
+    
+    /* Metric cards text contrast */
+    .metric-card p,
+    .metric-card div,
+    .metric-card span {
+        color: #1a252f !important;
+    }
+    
+    .metric-container p,
+    .metric-container div,
+    .metric-container span {
+        color: #1a252f !important;
+    }
+    
+    /* Add subtle animations */
+    .main .block-container {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -154,8 +414,8 @@ class RAGDemoApp:
             # Logo and title
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 2rem;">
-                    <h2>🤖 RAG Demo</h2>
-                    <p style="color: #666; font-size: 0.9rem;">Knowledge Base Interface</p>
+                    <h2 style="color: white; font-size: 1.8rem; margin-bottom: 0.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">🤖 RAG Demo</h2>
+                    <p style="color: rgba(255, 255, 255, 0.9); font-size: 1rem; margin: 0; font-weight: 300;">Knowledge Base Interface</p>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -174,7 +434,14 @@ class RAGDemoApp:
                     st.rerun()
             
             # Show planned features
-            st.markdown("**🚧 Planned Features:**")
+            st.markdown("""
+                <div style="margin: 1rem 0;">
+                    <h4 style="color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
+                        🚧 Planned Features
+                    </h4>
+                </div>
+            """, unsafe_allow_html=True)
+            
             for page in planned_pages:
                 st.button(
                     f"🔜 {page}", 
@@ -233,20 +500,46 @@ class RAGDemoApp:
         """Render the chat interface page"""
         st.markdown('<h1 class="main-header">💬 Knowledge Base Chat</h1>', unsafe_allow_html=True)
         
-        # Quick stats
-        col1, col2, col3, col4 = st.columns(4)
+        # Show development mode banner if using placeholder values
+        if self.config.get('knowledgeBaseId') == 'local-dev-placeholder-kb-id':
+            st.markdown("""
+                <div style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.1)); 
+                           border: 2px solid #ffc107; border-radius: 16px; padding: 1.5rem; margin: 1.5rem 0;
+                           box-shadow: 0 8px 25px rgba(255, 193, 7, 0.2);">
+                    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                        <div style="font-size: 1.5rem; margin-right: 0.75rem;">🛠️</div>
+                        <h3 style="color: #e65100; margin: 0; font-weight: 600;">Local Development Mode</h3>
+                    </div>
+                    <p style="color: #bf360c; margin-bottom: 1rem; font-size: 0.95rem;">
+                        Using placeholder configuration - limited functionality available
+                    </p>
+                    <div style="background: white; border-radius: 12px; padding: 1rem; margin: 1rem 0;">
+                        <h4 style="color: #27ae60; margin: 0 0 0.5rem 0; font-size: 0.9rem;">🚀 To get full functionality:</h4>
+                        <ol style="color: #2c3e50; margin: 0; padding-left: 1.2rem;">
+                            <li>Deploy infrastructure: <code>./scripts/deploy.sh dev</code></li>
+                            <li>Use the deployed frontend URL instead of local</li>
+                        </ol>
+                    </div>
+                    <div style="background: rgba(244, 67, 54, 0.1); border-radius: 12px; padding: 1rem;">
+                        <h4 style="color: #c62828; margin: 0 0 0.5rem 0; font-size: 0.9rem;">⚠️ Current limitations:</h4>
+                        <ul style="color: #2c3e50; margin: 0; padding-left: 1.2rem;">
+                            <li>Chat responses will be placeholder messages</li>
+                            <li>No real document search capability</li>
+                            <li>Cannot upload or manage documents</li>
+                        </ul>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
         
-        with col1:
-            st.metric("Messages Today", len(st.session_state.messages), delta="2")
-        
-        with col2:
-            st.metric("Avg Response Time", "1.2s", delta="-0.3s")
-        
-        with col3:
-            st.metric("Knowledge Base Docs", "1,234", delta="12")
-        
-        with col4:
-            st.metric("Success Rate", "98.5%", delta="0.5%")
+        # Simple conversation counter (only real metric)
+        if len(st.session_state.messages) > 0:
+            st.markdown("""
+                <div style="background: rgba(102, 126, 234, 0.1); border-radius: 12px; padding: 1rem; margin: 1.5rem 0; text-align: center;">
+                    <span style="color: #2c3e50; font-size: 0.9rem;">
+                        💬 <strong>{} messages</strong> in this conversation
+                    </span>
+                </div>
+            """.format(len(st.session_state.messages)), unsafe_allow_html=True)
         
         st.divider()
         

@@ -324,17 +324,73 @@ aws s3 ls s3://your-bucket-name/documents/ --recursive
 
 ## Development Workflow
 
-### Local Development
+### 🎯 **For Demo Usage (Recommended)**
+
+Most users should use the **deployed version** rather than local development:
+
 ```bash
-# 1. Make changes to frontend
+# Deploy complete system (includes frontend)
+./scripts/deploy.sh dev
+
+# ✅ Access your RAG system via the provided URL
+# ✅ No local setup required
+# ✅ Everything works out of the box
+```
+
+### 🛠️ **For Development (Advanced)**
+
+#### **Quick Local Development (No Infrastructure Required)**
+
+For frontend UI development without deploying infrastructure:
+
+```bash
+# 1. Set up Python environment
 cd frontend/
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 2. Install Python dependencies
+pip install -r requirements.txt
+
+# 3. Run with placeholder configuration
 streamlit run app.py
+# ✅ App starts in "Local Development Mode"
+# ✅ Shows placeholder responses instead of real RAG
+# ✅ Perfect for UI development and testing
 
-# 2. Test changes locally with deployed backend
+# Opens in browser at http://localhost:8501
+```
+
+#### **Full Local Development (With Real Backend)**
+
+For testing against deployed infrastructure:
+
+**Prerequisites**: Deploy the infrastructure first:
+```bash
+# Deploy backend infrastructure first
+./scripts/deploy.sh dev
+# Note the outputs: Knowledge Base ID, S3 bucket, etc.
+```
+
+**Connect Local Frontend to Deployed Backend**:
+```bash
+# 1. Set up Python environment (if not done above)
+cd frontend/
+python -m venv venv
+source venv/bin/activate
+
+# 2. Set up environment variables (get values from CDK outputs)
 export AWS_REGION=us-east-1
-export KNOWLEDGE_BASE_ID=your-kb-id  # From CDK outputs
+export KNOWLEDGE_BASE_ID=your-kb-id-from-deployment
+export DOCUMENTS_BUCKET=your-bucket-name-from-deployment
+export ENVIRONMENT=dev
 
-# 3. Deploy changes
+# 3. Run frontend locally with real backend
+streamlit run app.py
+# ✅ Full RAG functionality with real Knowledge Base
+# ✅ Real document search and AI responses
+
+# 4. Deploy changes when ready
 ./scripts/deploy.sh dev
 ```
 
@@ -411,6 +467,32 @@ cdk bootstrap aws://ACCOUNT-ID/REGION
 # See Roadmap for planned document management features
 ```
 
+**❌ "streamlit: command not found" when running locally**
+```bash
+# Solution: Install Python dependencies first
+cd frontend/
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+streamlit run app.py
+
+# Alternative: Use deployed frontend instead of local development
+./scripts/deploy.sh dev  # Then use the deployed URL
+```
+
+**❌ "Missing required configuration fields: ['knowledgeBaseId']"**
+```bash
+# Solution 1: The app now supports local development mode!
+cd frontend/
+source venv/bin/activate
+streamlit run app.py
+# ✅ Will now start with placeholder values and show development mode banner
+
+# Solution 2: Deploy infrastructure first (recommended for real functionality)
+./scripts/deploy.sh dev
+# Then use the deployed URL for full RAG capabilities
+```
+
 For more issues, see [Troubleshooting Guide](Documentation/docs/TROUBLESHOOTING.md).
 
 ## Contributing
@@ -422,14 +504,20 @@ For more issues, see [Troubleshooting Guide](Documentation/docs/TROUBLESHOOTING.
 git clone https://github.com/YOUR-USERNAME/rag-demo-cdk.git
 cd rag-demo-cdk
 
-# 3. Install dependencies
+# 3. Install CDK dependencies
 npm install
-pip install -r frontend/requirements.txt
 
-# 4. Create feature branch
+# 4. Set up Python environment for frontend
+cd frontend/
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cd ..
+
+# 5. Create feature branch
 git checkout -b feature/your-feature-name
 
-# 5. Deploy to your dev environment
+# 6. Deploy to your dev environment
 ./scripts/deploy.sh dev
 ```
 
@@ -458,9 +546,9 @@ pytest
 
 ## Support & Community
 
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/your-org/rag-demo-cdk/issues)
-- **💡 Feature Requests**: [GitHub Discussions](https://github.com/your-org/rag-demo-cdk/discussions)
-- **📖 Documentation**: [Project Wiki](https://github.com/your-org/rag-demo-cdk/wiki)
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/matoblac/rag-demo-cdk/issues)
+- **💡 Feature Requests**: [GitHub Discussions](https://github.com/matoblac/rag-demo-cdk/discussions)
+- **📖 Documentation**: [Project Wiki](https://github.com/matoblac/rag-demo-cdk/wiki)
 - **💬 Questions**: Use GitHub Discussions or create an issue
 
 ## License

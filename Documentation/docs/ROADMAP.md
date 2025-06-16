@@ -164,10 +164,12 @@ col4.metric("Most Used Doc", "API Guide", "45 refs")
 
 Have ideas for other features? Found this roadmap helpful? 
 
-- **Feature Requests**: [GitHub Issues](https://github.com/your-org/rag-demo-cdk/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/rag-demo-cdk/discussions)
+- **Feature Requests**: [GitHub Issues](https://github.com/matoblac/rag-demo-cdk/issues)
 - **Pull Requests**: Contributions welcome for any roadmap items!
 
 ---
 
-*This roadmap is a living document and will be updated based on user feedback and project evolution.* 
+<div align="center">
+made with ❤️ with [AWS CDK](https://aws.amazon.com/cdk/) and [Streamlit](https://streamlit.io/) 
+</div>
+

@@ -51,6 +51,11 @@ class BedrockClient:
         try:
             knowledge_base_id = self.config['knowledgeBaseId']
             
+            # Check for local development placeholder
+            if knowledge_base_id == 'local-dev-placeholder-kb-id':
+                logger.warning("🛠️ Local development mode: Cannot query Knowledge Base without deployed infrastructure")
+                return self._create_local_dev_response(query, start_time)
+            
             response = self.bedrock_agent_runtime.retrieve(
                 knowledgeBaseId=knowledge_base_id,
                 retrievalQuery={'text': query},
@@ -393,4 +398,26 @@ Answer:"""
             'dimensions': self.config.get('vectorDimensions', 'Unknown'),
             'chunk_size': self.config.get('chunkSize', 'Unknown'),
             'chunk_overlap': self.config.get('chunkOverlap', 'Unknown'),
+        }
+    
+    def _create_local_dev_response(self, query: str, start_time: float) -> Dict[str, Any]:
+        """Create a mock response for local development mode"""
+        query_time = time.time() - start_time
+        
+        return {
+            'query': query,
+            'results': [
+                {
+                    'content': "🛠️ **Local Development Mode**\n\nThis is a placeholder response because no Knowledge Base is deployed. To get real document-based answers:\n\n1. Deploy the infrastructure: `./scripts/deploy.sh dev`\n2. Upload documents to S3\n3. Use the deployed frontend URL\n\nThe frontend interface works, but it needs real AWS infrastructure to provide Knowledge Base functionality.",
+                    'score': 1.0,
+                    'location': {
+                        'type': 'LOCAL_DEV',
+                        'uri': 'local-development-placeholder'
+                    }
+                }
+            ],
+            'total_results': 1,
+            'query_time': query_time,
+            'timestamp': datetime.utcnow().isoformat(),
+            'search_type': 'LOCAL_DEV'
         } 
