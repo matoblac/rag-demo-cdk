@@ -11,14 +11,15 @@ from mangum import Mangum
 from typing import Dict, Any
 
 # Add components to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'components'))
-sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "components"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 
 # Import components
 from components.chat_interface import ChatInterface
+
 # Note: Other components planned for future releases (see Documentation/docs/ROADMAP.md)
 # from components.document_manager import DocumentManager
-# from components.analytics import Analytics  
+# from components.analytics import Analytics
 # from components.system_status import SystemStatus
 # from components.settings import Settings
 from utils.config_loader import ConfigLoader
@@ -31,14 +32,15 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': 'https://github.com/your-org/rag-demo',
-        'Report a bug': 'https://github.com/your-org/rag-demo/issues',
-        'About': "# RAG Demo\nEnterprise-ready Retrieval Augmented Generation with AWS Bedrock"
-    }
+        "Get Help": "https://github.com/your-org/rag-demo",
+        "Report a bug": "https://github.com/your-org/rag-demo/issues",
+        "About": "# RAG Demo\nEnterprise-ready Retrieval Augmented Generation with AWS Bedrock",
+    },
 )
 
 # Custom CSS - Bright, modern theme
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -361,19 +363,22 @@ st.markdown("""
         to { opacity: 1; transform: translateY(0); }
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
+
 
 class RAGDemoApp:
     """Main RAG Demo Application Class"""
-    
+
     def __init__(self):
         self.config_loader = ConfigLoader()
         self.config = self.config_loader.load_config()
         self.bedrock_client = BedrockClient(self.config)
-        
+
         # Initialize session state
         self.init_session_state()
-        
+
         # Initialize components
         self.chat_interface = ChatInterface(self.bedrock_client, self.config)
         # Note: Other components planned for future releases (see Documentation/docs/ROADMAP.md)
@@ -384,107 +389,123 @@ class RAGDemoApp:
 
     def init_session_state(self):
         """Initialize Streamlit session state variables"""
-        if 'messages' not in st.session_state:
+        if "messages" not in st.session_state:
             st.session_state.messages = []
-        
-        if 'current_page' not in st.session_state:
+
+        if "current_page" not in st.session_state:
             st.session_state.current_page = "Chat"
-        
-        if 'user_preferences' not in st.session_state:
+
+        if "user_preferences" not in st.session_state:
             st.session_state.user_preferences = {
-                'theme': 'light',
-                'auto_scroll': True,
-                'show_source_citations': True,
-                'max_results': 5,
-                'temperature': 0.7,
+                "theme": "light",
+                "auto_scroll": True,
+                "show_source_citations": True,
+                "max_results": 5,
+                "temperature": 0.7,
             }
-        
-        if 'system_health' not in st.session_state:
+
+        if "system_health" not in st.session_state:
             st.session_state.system_health = {
-                'status': 'healthy',
-                'last_check': None,
-                'metrics': {}
+                "status": "healthy",
+                "last_check": None,
+                "metrics": {},
             }
 
     def render_sidebar(self):
         """Render the sidebar navigation and status"""
         with st.sidebar:
             st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-            
+
             # Logo and title
-            st.markdown("""
+            st.markdown(
+                """
                 <div style="text-align: center; margin-bottom: 2rem;">
                     <h2 style="color: white; font-size: 1.8rem; margin-bottom: 0.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">🤖 RAG Demo</h2>
                     <p style="color: rgba(255, 255, 255, 0.9); font-size: 1rem; margin: 0; font-weight: 300;">Knowledge Base Interface</p>
                 </div>
-            """, unsafe_allow_html=True)
-            
+            """,
+                unsafe_allow_html=True,
+            )
+
             # Navigation
             pages = ["Chat"]  # Demo scope - see ROADMAP.md for planned features
             planned_pages = ["Documents", "Analytics", "System Status", "Settings"]
-            
+
             for page in pages:
                 if st.button(
-                    page, 
+                    page,
                     key=f"nav_{page}",
                     use_container_width=True,
-                    type="primary" if st.session_state.current_page == page else "secondary"
+                    type=(
+                        "primary"
+                        if st.session_state.current_page == page
+                        else "secondary"
+                    ),
                 ):
                     st.session_state.current_page = page
                     st.rerun()
-            
+
             # Show planned features
-            st.markdown("""
+            st.markdown(
+                """
                 <div style="margin: 1rem 0;">
                     <h4 style="color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
                         🚧 Planned Features
                     </h4>
                 </div>
-            """, unsafe_allow_html=True)
-            
+            """,
+                unsafe_allow_html=True,
+            )
+
             for page in planned_pages:
                 st.button(
-                    f"🔜 {page}", 
+                    f"🔜 {page}",
                     key=f"planned_{page}",
                     use_container_width=True,
                     disabled=True,
-                    help="Planned for future release - see Documentation/docs/ROADMAP.md"
+                    help="Planned for future release - see Documentation/docs/ROADMAP.md",
                 )
-            
+
             st.divider()
-            
+
             # Quick status
-            status = st.session_state.system_health['status']
+            status = st.session_state.system_health["status"]
             status_color = {
-                'healthy': '#4CAF50',
-                'warning': '#FF9800',
-                'error': '#F44336'
-            }.get(status, '#666')
-            
-            st.markdown(f"""
+                "healthy": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+            }.get(status, "#666")
+
+            st.markdown(
+                f"""
                 <div class="metric-card">
                     <div style="display: flex; align-items: center;">
                         <span class="status-indicator" style="background-color: {status_color};"></span>
                         <strong>System Status: {status.title()}</strong>
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
-            
+            """,
+                unsafe_allow_html=True,
+            )
+
             # Environment info
-            st.markdown(f"""
+            st.markdown(
+                f"""
                 <div class="metric-card">
                     <strong>Environment:</strong> {self.config.get('environment', 'dev')}<br>
                     <strong>Region:</strong> {self.config.get('region', 'us-east-1')}<br>
                     <strong>Model:</strong> {self.config.get('embeddingModel', 'titan')}
                 </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
     def render_main_content(self):
         """Render the main content area based on current page"""
         current_page = st.session_state.current_page
-        
+
         if current_page == "Chat":
             self.render_chat_page()
         elif current_page == "Documents":
@@ -498,11 +519,15 @@ class RAGDemoApp:
 
     def render_chat_page(self):
         """Render the chat interface page"""
-        st.markdown('<h1 class="main-header">💬 Knowledge Base Chat</h1>', unsafe_allow_html=True)
-        
+        st.markdown(
+            '<h1 class="main-header">💬 Knowledge Base Chat</h1>',
+            unsafe_allow_html=True,
+        )
+
         # Show development mode banner if using placeholder values
-        if self.config.get('knowledgeBaseId') == 'local-dev-placeholder-kb-id':
-            st.markdown("""
+        if self.config.get("knowledgeBaseId") == "local-dev-placeholder-kb-id":
+            st.markdown(
+                """
                 <div style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.1)); 
                            border: 2px solid #ffc107; border-radius: 16px; padding: 1.5rem; margin: 1.5rem 0;
                            box-shadow: 0 8px 25px rgba(255, 193, 7, 0.2);">
@@ -529,32 +554,44 @@ class RAGDemoApp:
                         </ul>
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
-        
+            """,
+                unsafe_allow_html=True,
+            )
+
         # Simple conversation counter (only real metric)
         if len(st.session_state.messages) > 0:
-            st.markdown("""
+            st.markdown(
+                """
                 <div style="background: rgba(102, 126, 234, 0.1); border-radius: 12px; padding: 1rem; margin: 1.5rem 0; text-align: center;">
                     <span style="color: #2c3e50; font-size: 0.9rem;">
                         💬 <strong>{} messages</strong> in this conversation
                     </span>
                 </div>
-            """.format(len(st.session_state.messages)), unsafe_allow_html=True)
-        
+            """.format(
+                    len(st.session_state.messages)
+                ),
+                unsafe_allow_html=True,
+            )
+
         st.divider()
-        
+
         # Chat interface
         self.chat_interface.render()
 
     def render_documents_page(self):
         """Render the document management page"""
-        st.markdown('<h1 class="main-header">📚 Document Management</h1>', unsafe_allow_html=True)
-        
+        st.markdown(
+            '<h1 class="main-header">📚 Document Management</h1>',
+            unsafe_allow_html=True,
+        )
+
         # Placeholder for future implementation
-        st.info("🚧 **Coming Soon!** Document management interface is planned for a future release.")
+        st.info(
+            "🚧 **Coming Soon!** Document management interface is planned for a future release."
+        )
         st.markdown("**Planned Features:**")
         st.markdown("- 📋 List all documents in Knowledge Base")
-        st.markdown("- 📊 Document ingestion status monitoring") 
+        st.markdown("- 📊 Document ingestion status monitoring")
         st.markdown("- 🗑️ Upload, delete, and manage documents")
         st.markdown("- 📈 Document usage analytics")
         st.markdown("\n**For now, use AWS CLI or S3 Console to manage documents.**")
@@ -562,10 +599,15 @@ class RAGDemoApp:
 
     def render_analytics_page(self):
         """Render the analytics dashboard page"""
-        st.markdown('<h1 class="main-header">📊 Analytics Dashboard</h1>', unsafe_allow_html=True)
-        
+        st.markdown(
+            '<h1 class="main-header">📊 Analytics Dashboard</h1>',
+            unsafe_allow_html=True,
+        )
+
         # Placeholder for future implementation
-        st.info("🚧 **Coming Soon!** Usage analytics dashboard is planned for a future release.")
+        st.info(
+            "🚧 **Coming Soon!** Usage analytics dashboard is planned for a future release."
+        )
         st.markdown("**Planned Features:**")
         st.markdown("- 📈 Query frequency and patterns")
         st.markdown("- 📚 Document popularity rankings")
@@ -576,10 +618,14 @@ class RAGDemoApp:
 
     def render_system_status_page(self):
         """Render the system status page"""
-        st.markdown('<h1 class="main-header">⚡ System Status</h1>', unsafe_allow_html=True)
-        
+        st.markdown(
+            '<h1 class="main-header">⚡ System Status</h1>', unsafe_allow_html=True
+        )
+
         # Placeholder for future implementation
-        st.info("🚧 **Coming Soon!** System monitoring interface is planned for a future release.")
+        st.info(
+            "🚧 **Coming Soon!** System monitoring interface is planned for a future release."
+        )
         st.markdown("**Planned Features:**")
         st.markdown("- 🔍 Real-time infrastructure health")
         st.markdown("- 📊 CloudWatch metrics integration")
@@ -592,9 +638,11 @@ class RAGDemoApp:
     def render_settings_page(self):
         """Render the settings page"""
         st.markdown('<h1 class="main-header">⚙️ Settings</h1>', unsafe_allow_html=True)
-        
+
         # Placeholder for future implementation
-        st.info("🚧 **Coming Soon!** Advanced settings interface is planned for a future release.")
+        st.info(
+            "🚧 **Coming Soon!** Advanced settings interface is planned for a future release."
+        )
         st.markdown("**Planned Features:**")
         st.markdown("- 👤 User preferences and themes")
         st.markdown("- 🤖 Model configuration and fine-tuning")
@@ -606,7 +654,8 @@ class RAGDemoApp:
 
     def render_footer(self):
         """Render the footer"""
-        st.markdown("""
+        st.markdown(
+            """
             <div class="footer">
                 <p>
                     <strong>RAG Demo</strong> - Enterprise Knowledge Base powered by 
@@ -623,71 +672,76 @@ class RAGDemoApp:
                     Document management, analytics, and system monitoring coming soon!
                 </p>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     def run(self):
         """Main application run method"""
         try:
             # Basic health check (full system monitoring planned for future release)
-            if st.session_state.system_health['last_check'] is None:
-                st.session_state.system_health.update({
-                    'status': 'healthy',
-                    'last_check': 'Demo mode - full monitoring coming soon',
-                    'metrics': {}
-                })
-            
+            if st.session_state.system_health["last_check"] is None:
+                st.session_state.system_health.update(
+                    {
+                        "status": "healthy",
+                        "last_check": "Demo mode - full monitoring coming soon",
+                        "metrics": {},
+                    }
+                )
+
             # Render sidebar
             self.render_sidebar()
-            
+
             # Render main content
             self.render_main_content()
-            
+
             # Render footer
             self.render_footer()
-            
+
         except Exception as e:
             st.error(f"Application error: {str(e)}")
             st.exception(e)
 
+
 # Initialize and run the app
 app = RAGDemoApp()
+
 
 def main():
     """Main entry point for local development"""
     app.run()
 
+
 # Lambda handler for serverless deployment
 def lambda_handler(event, context):
     """AWS Lambda handler for serverless Streamlit deployment"""
-    
+
     # Configure Streamlit for Lambda
-    os.environ['STREAMLIT_SERVER_HEADLESS'] = 'true'
-    os.environ['STREAMLIT_SERVER_ENABLE_CORS'] = 'false'
-    os.environ['STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION'] = 'false'
-    
+    os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
+    os.environ["STREAMLIT_SERVER_ENABLE_CORS"] = "false"
+    os.environ["STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION"] = "false"
+
     # Create Mangum adapter
     from streamlit.web import cli as stcli
     import sys
-    
+
     # Override sys.argv for Streamlit
-    sys.argv = ['streamlit', 'run', __file__, '--server.headless', 'true']
-    
+    sys.argv = ["streamlit", "run", __file__, "--server.headless", "true"]
+
     # Run the app
     app.run()
-    
-    return {
-        'statusCode': 200,
-        'body': 'Streamlit app is running'
-    }
+
+    return {"statusCode": 200, "body": "Streamlit app is running"}
+
 
 # Mangum ASGI adapter for Lambda
 asgi_app = Mangum(lambda_handler)
 
 if __name__ == "__main__":
     # Check if running in Lambda environment
-    if os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         # Running in Lambda
         handler = lambda_handler
     else:
         # Running locally
-        main() 
+        main()
