@@ -48,18 +48,29 @@ export class InfrastructureStack extends cdk.Stack {
     // Get notification topic from storage stack
     const notificationTopic = this.getNotificationTopicFromSSM(config);
 
-    // 1. Create Vector Database (OpenSearch Serverless)
+    // 1. Create Knowledge Base role first (without the full construct)
+    const knowledgeBaseRole = this.createKnowledgeBaseRole(config, documentsBucket, encryptionKey);
+
+    // 2. Create Vector Database with the Knowledge Base role
     this.vectorDatabase = new VectorDatabaseConstruct(this, 'VectorDatabase', {
       config,
+      knowledgeBaseRole,
     });
 
-    // 2. Create Knowledge Base with the vector database
+    // 3. Create the OpenSearch index before Knowledge Base creation
+    const indexCreationCustomResource = this.createIndexCreationResource(config, knowledgeBaseRole);
+
+    // 4. Create Knowledge Base with the vector database and existing role (after index exists)
     this.knowledgeBase = new KnowledgeBaseConstruct(this, 'KnowledgeBase', {
       config,
       documentsBucket,
       vectorDatabase: this.vectorDatabase,
       encryptionKey,
+      existingRole: knowledgeBaseRole,
     });
+
+    // Add dependency to ensure index is created first
+    this.knowledgeBase.knowledgeBase.node.addDependency(indexCreationCustomResource);
 
     // Set public properties
     this.knowledgeBaseId = this.knowledgeBase.knowledgeBaseId;
@@ -514,6 +525,328 @@ def setup_monitoring_dashboard():
       }),
       description: 'Infrastructure configuration summary',
     });
+  }
+
+  private createKnowledgeBaseRole(
+    config: Config,
+    documentsBucket: s3.IBucket,
+    encryptionKey?: kms.IKey
+  ): cdk.aws_iam.Role {
+    const roleName = `RagDemoKnowledgebaseRole${config.environment.charAt(0).toUpperCase() + config.environment.slice(1)}`;
+
+    const role = new cdk.aws_iam.Role(this, 'KnowledgeBaseRole', {
+      roleName,
+      assumedBy: new cdk.aws_iam.ServicePrincipal('bedrock.amazonaws.com'),
+      description: `IAM Role for Bedrock Knowledge Base execution in ${config.environment}`,
+    });
+
+    // S3 permissions for the documents bucket
+    role.addToPolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: [
+        's3:GetObject',
+        's3:ListBucket',
+        's3:GetBucketLocation',
+        's3:GetObjectVersion',
+      ],
+      resources: [
+        documentsBucket.bucketArn,
+        `${documentsBucket.bucketArn}/*`,
+      ],
+    }));
+
+    // Bedrock model permissions
+    role.addToPolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:GetFoundationModel',
+        'bedrock:ListFoundationModels',
+      ],
+      resources: [
+        `arn:aws:bedrock:${config.region}::foundation-model/${config.embeddingModel}`,
+        `arn:aws:bedrock:${config.region}:*:foundation-model/*`,
+      ],
+    }));
+
+    // KMS permissions if encryption is enabled
+    if (encryptionKey) {
+      role.addToPolicy(new cdk.aws_iam.PolicyStatement({
+        effect: cdk.aws_iam.Effect.ALLOW,
+        actions: [
+          'kms:Decrypt',
+          'kms:GenerateDataKey',
+          'kms:CreateGrant',
+          'kms:DescribeKey',
+        ],
+        resources: [encryptionKey.keyArn],
+      }));
+    }
+
+    // CloudWatch Logs permissions
+    role.addToPolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: [
+        'logs:CreateLogGroup',
+        'logs:CreateLogStream',
+        'logs:PutLogEvents',
+      ],
+      resources: [
+        `arn:aws:logs:${config.region}:${this.account}:log-group:/aws/bedrock/knowledgebases*`,
+      ],
+    }));
+
+    // OpenSearch Serverless permissions
+    role.addToPolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: [
+        'aoss:APIAccessAll',
+        'aoss:CreateIndex',
+        'aoss:DeleteIndex',
+        'aoss:UpdateIndex',
+        'aoss:DescribeIndex',
+        'aoss:ReadDocument',
+        'aoss:WriteDocument',
+      ],
+      resources: [
+        `arn:aws:aoss:${config.region}:${this.account}:collection/*`,
+        `arn:aws:aoss:${config.region}:${this.account}:index/*/*`,
+      ],
+    }));
+
+    return role;
+  }
+
+  private createIndexCreationResource(config: Config, knowledgeBaseRole: cdk.aws_iam.Role): cdk.CustomResource {
+    // Create a custom resource Lambda that creates the OpenSearch index
+    const indexCreationLambda = new cdk.aws_lambda.Function(this, 'IndexCreationLambda', {
+      functionName: `rag-demo-index-creation-${config.environment}`,
+      runtime: cdk.aws_lambda.Runtime.PYTHON_3_11,
+      handler: 'index.handler',
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 512,
+      environment: {
+        COLLECTION_ENDPOINT: this.vectorDatabase.collectionEndpoint,
+        INDEX_NAME: config.indexName,
+        VECTOR_DIMENSIONS: config.vectorDimensions.toString(),
+        ENVIRONMENT: config.environment,
+      },
+      code: cdk.aws_lambda.Code.fromInline(`
+import json
+import boto3
+import logging
+import urllib3
+from typing import Dict, Any
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+def handler(event: Dict[str, Any], context) -> None:
+    """
+    Create OpenSearch index before Knowledge Base creation
+    """
+    response_url = event['ResponseURL']
+    
+    try:
+        logger.info(f"Index creation event: {json.dumps(event, default=str)}")
+        
+        request_type = event.get('RequestType', 'Create')
+        
+        if request_type == 'Create':
+            create_opensearch_index()
+        elif request_type == 'Delete':
+            logger.info("Index deletion not required - cleanup handled by collection deletion")
+        
+        # Send SUCCESS response to CloudFormation
+        send_response(event, context, 'SUCCESS', {
+            'Message': f'OpenSearch index operation completed: {request_type}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Index creation failed: {str(e)}")
+        # Send FAILED response to CloudFormation
+        send_response(event, context, 'FAILED', {}, str(e))
+
+def send_response(event, context, status, data, reason=None):
+    """Send response to CloudFormation"""
+    response_body = {
+        'Status': status,
+        'Reason': reason or f'See CloudWatch Log Stream: {context.log_stream_name}',
+        'PhysicalResourceId': 'opensearch-index-creation',
+        'StackId': event['StackId'],
+        'RequestId': event['RequestId'],
+        'LogicalResourceId': event['LogicalResourceId'],
+        'Data': data
+    }
+    
+    json_response = json.dumps(response_body)
+    logger.info(f"Response body: {json_response}")
+    
+    headers = {
+        'content-type': '',
+        'content-length': str(len(json_response))
+    }
+    
+    try:
+        http = urllib3.PoolManager()
+        response = http.request('PUT', event['ResponseURL'], body=json_response, headers=headers)
+        logger.info(f"CloudFormation response status: {response.status}")
+    except Exception as e:
+        logger.error(f"Failed to send response to CloudFormation: {str(e)}")
+
+def create_opensearch_index():
+    """Create the vector index in OpenSearch Serverless"""
+    try:
+        import os
+        import json
+        import urllib3
+        import boto3
+        from botocore.auth import SigV4Auth
+        from botocore.awsrequest import AWSRequest
+        
+        # Get environment variables
+        collection_endpoint = os.environ['COLLECTION_ENDPOINT']
+        index_name = os.environ['INDEX_NAME']
+        vector_dimensions = int(os.environ['VECTOR_DIMENSIONS'])
+        
+        logger.info(f"Creating index {index_name} at {collection_endpoint} with {vector_dimensions} dimensions")
+        
+        # Get AWS credentials
+        session = boto3.Session()
+        credentials = session.get_credentials()
+        region = session.region_name or 'us-east-1'
+        
+        if not credentials:
+            raise ValueError("No AWS credentials available")
+        
+        # Create the index mapping
+        index_mapping = {
+            "mappings": {
+                "properties": {
+                    "vector": {
+                        "type": "knn_vector",
+                        "dimension": vector_dimensions,
+                        "method": {
+                            "name": "hnsw",
+                            "space_type": "cosinesimil",
+                            "engine": "faiss",
+                            "parameters": {
+                                "ef_construction": 256,
+                                "m": 16
+                            }
+                        }
+                    },
+                    "text": {
+                        "type": "text",
+                        "analyzer": "standard"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "properties": {
+                            "source": {"type": "keyword"},
+                            "page": {"type": "integer"},
+                            "chunk_id": {"type": "keyword"},
+                            "document_id": {"type": "keyword"},
+                            "created_at": {"type": "date"},
+                            "updated_at": {"type": "date"}
+                        }
+                    }
+                }
+            },
+            "settings": {
+                "index": {
+                    "knn": True,
+                    "number_of_shards": 1,
+                    "number_of_replicas": 0
+                }
+            }
+        }
+        
+        # Create HTTP client with timeout
+        http = urllib3.PoolManager(timeout=urllib3.Timeout(connect=30, read=60))
+        
+        # Check if index exists first
+        check_url = f"{collection_endpoint}/{index_name}"
+        check_request = AWSRequest(method='HEAD', url=check_url)
+        SigV4Auth(credentials, 'aoss', region).add_auth(check_request)
+        
+        logger.info(f"Checking if index exists: {check_url}")
+        check_response = http.request(
+            check_request.method,
+            check_request.url,
+            headers=dict(check_request.headers),
+            timeout=30
+        )
+        
+        logger.info(f"Index check response: {check_response.status}")
+        if check_response.status == 200:
+            logger.info(f"Index {index_name} already exists")
+            return
+        
+        # Create the index
+        create_url = f"{collection_endpoint}/{index_name}"
+        create_request = AWSRequest(
+            method='PUT',
+            url=create_url,
+            data=json.dumps(index_mapping),
+            headers={'Content-Type': 'application/json'}
+        )
+        SigV4Auth(credentials, 'aoss', region).add_auth(create_request)
+        
+        logger.info(f"Creating index: {create_url}")
+        response = http.request(
+            create_request.method,
+            create_request.url,
+            body=create_request.body,
+            headers=dict(create_request.headers),
+            timeout=60
+        )
+        
+        logger.info(f"Index creation response: {response.status}, {response.data}")
+        if response.status in [200, 201]:
+            logger.info(f"Successfully created index {index_name}")
+        else:
+            error_msg = f"Failed to create index. Status: {response.status}, Response: {response.data.decode('utf-8') if response.data else 'No response body'}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+    except Exception as e:
+        logger.error(f"Failed to create OpenSearch index: {str(e)}")
+        raise
+`),
+    });
+
+    // Grant OpenSearch permissions to the Lambda
+    indexCreationLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: [
+        'aoss:APIAccessAll',
+        'aoss:CreateIndex',
+        'aoss:UpdateIndex',
+        'aoss:DescribeIndex',
+      ],
+      resources: [
+        `arn:aws:aoss:${config.region}:${this.account}:collection/${this.vectorDatabase.collection.ref}`,
+        `arn:aws:aoss:${config.region}:${this.account}:index/${this.vectorDatabase.collection.ref}/*`,
+      ],
+    }));
+
+    // Create the custom resource
+    const customResource = new cdk.CustomResource(this, 'OpenSearchIndexCreation', {
+      serviceToken: indexCreationLambda.functionArn,
+      properties: {
+        IndexName: config.indexName,
+        VectorDimensions: config.vectorDimensions,
+        CollectionEndpoint: this.vectorDatabase.collectionEndpoint,
+        Timestamp: Date.now(), // Force update on redeployment
+      },
+    });
+
+    // Ensure the custom resource runs after the vector database is ready
+    customResource.node.addDependency(this.vectorDatabase.collection);
+    customResource.node.addDependency(this.vectorDatabase.dataAccessPolicy);
+
+    return customResource;
   }
 
   private applyTags(config: Config): void {

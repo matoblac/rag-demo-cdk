@@ -65,17 +65,6 @@ cdk.Tags.of(storageStack).add('StackType', 'persistent');
 cdk.Tags.of(infrastructureStack).add('StackType', 'disposable');
 cdk.Tags.of(frontendStack).add('StackType', 'frontend');
 
-// Output key information for scripts
-new cdk.CfnOutput(app, 'Environment', {
-  value: environment,
-  description: 'Deployment environment',
-});
-
-new cdk.CfnOutput(app, 'Region', {
-  value: region,
-  description: 'AWS region',
-});
-
 // Aspects for additional validation and compliance
 cdk.Aspects.of(app).add({
   visit(node: IConstruct) {

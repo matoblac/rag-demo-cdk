@@ -972,16 +972,10 @@ def publish_analytics_metrics(analytics: Dict[str, Any], insights: Dict[str, Any
     // Custom metrics are published by the Lambda functions
     // This method can be extended to set up additional metric filters or custom metrics
     
-    // Create custom metric filter for log-based metrics
-    const queryLogGroup = logs.LogGroup.fromLogGroupName(
-      this,
-      'ImportedQueryLogGroup',
-      formatLogGroupName(config, 'query-handler')
-    );
-
-    // Metric filter for successful queries
+    // Create custom metric filter for log-based metrics using the actual Lambda log group
+    // Note: Lambda functions automatically create their log groups, so we reference the existing one
     new logs.MetricFilter(this, 'SuccessfulQueriesFilter', {
-      logGroup: queryLogGroup,
+      logGroup: this.queryLambda.logGroup,
       metricNamespace: `RAG-Demo/${config.environment}`,
       metricName: 'SuccessfulQueries',
       filterPattern: logs.FilterPattern.literal('[timestamp, level="INFO", ..., message="Query completed successfully*"]'),

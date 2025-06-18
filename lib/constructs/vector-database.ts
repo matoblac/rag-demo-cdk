@@ -22,7 +22,7 @@ export class VectorDatabaseConstruct extends Construct {
   public readonly collection: opensearchserverless.CfnCollection;
   public readonly collectionEndpoint: string;
   public readonly dashboardsEndpoint: string;
-  public readonly dataAccessPolicy: opensearchserverless.CfnAccessPolicy;
+  public dataAccessPolicy: opensearchserverless.CfnAccessPolicy; // Remove readonly to allow updates
   public readonly networkPolicy: opensearchserverless.CfnSecurityPolicy;
   public readonly encryptionPolicy: opensearchserverless.CfnSecurityPolicy;
 
@@ -74,10 +74,7 @@ export class VectorDatabaseConstruct extends Construct {
             ResourceType: 'collection',
           },
         ],
-        AWSOwnedKey: !config.enableEncryption, // Use AWS owned keys if encryption is disabled
-        ...(config.enableEncryption && config.kmsKeyId && {
-          KmsKeyId: config.kmsKeyId,
-        }),
+        AWSOwnedKey: true, // Always use AWS owned keys for simplicity
       }),
     });
 
@@ -152,9 +149,6 @@ export class VectorDatabaseConstruct extends Construct {
       principals.push(knowledgeBaseRole.roleArn);
     }
 
-    // Add Bedrock service principal for the region
-    principals.push(`arn:aws:iam::${account}:role/service-role/AmazonBedrockExecutionRoleForKnowledgeBase_*`);
-
     const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(this, 'DataAccessPolicy', {
       name: policyName,
       type: 'data',
@@ -162,17 +156,6 @@ export class VectorDatabaseConstruct extends Construct {
       policy: JSON.stringify([
         {
           Rules: [
-            {
-              Resource: [`collection/${config.collectionName}`],
-              Permission: [
-                'aoss:CollectionAPIActions',
-                'aoss:CreateCollectionItems',
-                'aoss:DeleteCollectionItems',
-                'aoss:UpdateCollectionItems',
-                'aoss:DescribeCollectionItems',
-              ],
-              ResourceType: 'collection',
-            },
             {
               Resource: [`index/${config.collectionName}/*`],
               Permission: [

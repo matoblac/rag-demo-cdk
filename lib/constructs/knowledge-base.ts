@@ -28,6 +28,7 @@ export interface KnowledgeBaseProps {
   documentsBucket: s3.IBucket;
   vectorDatabase: VectorDatabaseConstruct;
   encryptionKey?: cdk.aws_kms.IKey;
+  existingRole?: iam.Role;
 }
 
 export class KnowledgeBaseConstruct extends Construct {
@@ -42,18 +43,15 @@ export class KnowledgeBaseConstruct extends Construct {
   constructor(scope: Construct, id: string, props: KnowledgeBaseProps) {
     super(scope, id);
 
-    const { config, documentsBucket, vectorDatabase, encryptionKey } = props;
+    const { config, documentsBucket, vectorDatabase, encryptionKey, existingRole } = props;
 
     // Validate region support
     if (!isBedrockSupportedInRegion(config.region)) {
       throw new Error(`Bedrock not supported in region: ${config.region}`);
     }
 
-    // Create IAM role for Knowledge Base
-    this.knowledgeBaseRole = this.createKnowledgeBaseRole(config, documentsBucket, vectorDatabase, encryptionKey);
-
-    // Update vector database access policy to include this role
-    const updatedDataAccessPolicy = this.updateVectorDatabaseAccess(config, vectorDatabase);
+    // Use existing role or create new one
+    this.knowledgeBaseRole = existingRole || this.createKnowledgeBaseRole(config, documentsBucket, vectorDatabase, encryptionKey);
 
     // Create the Knowledge Base
     this.knowledgeBase = this.createKnowledgeBase(config, vectorDatabase);

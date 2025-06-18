@@ -203,14 +203,14 @@ install_dependencies() {
 bootstrap_cdk() {
     log_info "Bootstrapping CDK (if needed)..."
     
-    # Check if already bootstrapped
-    BOOTSTRAP_STACK="CDKToolkit-RagDemo"
+    # Check if already bootstrapped with default stack name
+    BOOTSTRAP_STACK="CDKToolkit"
     
     if aws cloudformation describe-stacks --stack-name $BOOTSTRAP_STACK --profile $PROFILE --region $REGION &> /dev/null; then
         log_info "CDK already bootstrapped in $REGION"
     else
         log_info "Bootstrapping CDK in $REGION..."
-        cdk bootstrap --profile $PROFILE --toolkit-stack-name $BOOTSTRAP_STACK \
+        cdk bootstrap --profile $PROFILE \
             --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
         log_success "CDK bootstrap complete"
     fi

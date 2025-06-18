@@ -226,14 +226,11 @@ export class FrontendStack extends cdk.Stack {
       proxy: true,
     });
 
-    // Add catch-all proxy resource
+    // Add catch-all proxy resource - this handles all routes including root
     const proxyResource = api.root.addProxy({
       defaultIntegration: integration,
       anyMethod: true,
     });
-
-    // Add root method
-    api.root.addMethod('ANY', integration);
 
     return {
       api,
@@ -262,7 +259,7 @@ export class FrontendStack extends cdk.Stack {
       exportName: `RagDemo-FrontendUrl-${config.environment}`,
     });
 
-    new cdk.CfnOutput(this, 'FrontendBucket', {
+    new cdk.CfnOutput(this, 'FrontendBucketName', {
       value: this.frontendBucket.bucketName,
       description: 'Frontend assets S3 bucket',
       exportName: `RagDemo-FrontendBucket-${config.environment}`,
