@@ -12,14 +12,105 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-ENVIRONMENT=${1:-dev}
-REGION=${2:-us-east-1}
-PROFILE=${3:-default}
+# Default values
+ENVIRONMENT=""
+REGION=""
+PROFILE="default"
 
 # Validation arrays
 VALID_ENVIRONMENTS=("dev" "staging" "prod")
 SUPPORTED_REGIONS=("us-east-1" "us-west-2" "eu-west-1" "eu-central-1" "ap-southeast-1" "ap-northeast-1")
+
+# Help function
+show_help() {
+    echo "RAG Demo CDK Deployment Script"
+    echo ""
+    echo "Usage: $0 --region <region> [OPTIONS]"
+    echo ""
+    echo "Required Arguments:"
+    echo "  --region <region>        AWS region for deployment (e.g., us-east-1, us-west-2)"
+    echo ""
+    echo "Optional Arguments:"
+    echo "  --environment <env>      Deployment environment (dev|staging|prod) [default: dev]"
+    echo "  --profile <profile>      AWS CLI profile [default: default]"
+    echo "  --help, -h              Show this help message"
+    echo ""
+    echo "Environment Variables (Optional):"
+    echo "  ALLOWED_IPS             JSON array of IP addresses/CIDR blocks for frontend access"
+    echo "                          Example: '[\"1.2.3.4/32\", \"10.0.0.0/8\"]'"
+    echo ""
+    echo "Supported Regions:"
+    echo "  ${SUPPORTED_REGIONS[*]}"
+    echo ""
+    echo "Examples:"
+    echo "  $0 --region us-east-1                                    # Deploy to dev in us-east-1"
+    echo "  $0 --region us-west-2 --environment staging              # Deploy to staging"
+    echo "  $0 --region eu-west-1 --environment prod --profile prod  # Deploy to production"
+    echo ""
+    echo "Security Examples:"
+    echo "  ./scripts/get-my-ip.sh                                   # Get your current IP"
+    echo "  export ALLOWED_IPS='[\"1.2.3.4/32\"]'                    # Set IP restriction"
+    echo "  $0 --region us-east-1 --environment prod                 # Deploy with IP restriction"
+    echo ""
+    echo "⚠️  For production deployments, IP restriction is HIGHLY recommended!"
+    echo ""
+}
+
+# Parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --region)
+                REGION="$2"
+                shift 2
+                ;;
+            --environment)
+                ENVIRONMENT="$2"
+                shift 2
+                ;;
+            --profile)
+                PROFILE="$2"
+                shift 2
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Error: Unknown argument '$1'"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Set default environment if not provided
+    if [[ -z "$ENVIRONMENT" ]]; then
+        ENVIRONMENT="dev"
+    fi
+    
+    # Validate required arguments
+    if [[ -z "$REGION" ]]; then
+        echo "Error: --region is required"
+        echo ""
+        show_help
+        exit 1
+    fi
+    
+    # Validate environment
+    if [[ ! " ${VALID_ENVIRONMENTS[*]} " =~ " ${ENVIRONMENT} " ]]; then
+        echo "Error: Invalid environment '$ENVIRONMENT'"
+        echo "Valid environments: ${VALID_ENVIRONMENTS[*]}"
+        exit 1
+    fi
+    
+    # Validate region format (basic check)
+    if [[ ! "$REGION" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]]; then
+        echo "Error: Invalid region format '$REGION'"
+        echo "Expected format: us-east-1, eu-west-1, etc."
+        exit 1
+    fi
+}
 
 # Functions
 log_info() {
@@ -53,14 +144,7 @@ print_banner() {
 validate_inputs() {
     log_info "Validating deployment parameters..."
     
-    # Validate environment
-    if [[ ! " ${VALID_ENVIRONMENTS[*]} " =~ " ${ENVIRONMENT} " ]]; then
-        log_error "Invalid environment: $ENVIRONMENT"
-        log_error "Valid environments: ${VALID_ENVIRONMENTS[*]}"
-        exit 1
-    fi
-    
-    # Validate region
+    # Validate region support
     if [[ ! " ${SUPPORTED_REGIONS[*]} " =~ " ${REGION} " ]]; then
         log_warning "Region $REGION may not support all required services"
         log_warning "Recommended regions: ${SUPPORTED_REGIONS[*]}"
@@ -216,6 +300,44 @@ bootstrap_cdk() {
     fi
 }
 
+deploy_core_stack() {
+    log_info "Deploying core stack (IAM roles and policies)..."
+    
+    CORE_STACK="RagDemoCoreStack-$ENVIRONMENT"
+    
+    # Deploy core stack
+    cdk deploy $CORE_STACK \
+        --profile $PROFILE \
+        --context environment=$ENVIRONMENT \
+        --context region=$REGION \
+        --require-approval never \
+        --outputs-file cdk-outputs-core.json
+    
+    log_success "Core stack deployed successfully"
+    
+    # Wait for IAM role propagation
+    wait_for_iam_propagation
+}
+
+wait_for_iam_propagation() {
+    log_info "Waiting for IAM role propagation..."
+    
+    # IAM roles can take 2-5 minutes to propagate globally
+    log_info "IAM roles need time to propagate across AWS regions and services"
+    log_info "Waiting 3 minutes for optimal propagation..."
+    
+    for i in {1..180}; do
+        echo -n "."
+        sleep 1
+        if [ $((i % 30)) -eq 0 ]; then
+            echo " ${i}s"
+        fi
+    done
+    echo ""
+    
+    log_success "✅ IAM role propagation complete"
+}
+
 deploy_storage_stack() {
     log_info "Deploying storage stack (persistent resources)..."
     
@@ -245,45 +367,52 @@ deploy_storage_stack() {
     fi
 }
 
-deploy_infrastructure_stack() {
-    log_info "Deploying infrastructure stack (disposable resources)..."
+deploy_foundation_stack() {
+    log_info "Deploying foundation stack (OpenSearch, policies, IAM roles)..."
     
-    INFRA_STACK="RagDemoInfrastructureStack-$ENVIRONMENT"
+    FOUNDATION_STACK="RagDemoFoundationStack-$ENVIRONMENT"
     
-    # Deploy infrastructure stack
-    cdk deploy $INFRA_STACK \
+    # Deploy foundation stack
+    cdk deploy $FOUNDATION_STACK \
         --profile $PROFILE \
         --context environment=$ENVIRONMENT \
         --context region=$REGION \
         --require-approval never \
-        --outputs-file cdk-outputs-infrastructure.json
+        --outputs-file cdk-outputs-foundation.json
     
-    log_success "Infrastructure stack deployed successfully"
+    log_success "Foundation stack deployed successfully"
+    
+    # Wait for foundation resources to be ready
+    wait_for_foundation_resources
 }
 
-wait_for_resources() {
-    log_info "Waiting for resources to be ready..."
+wait_for_foundation_resources() {
+    log_info "Waiting for foundation resources to be ready..."
     
     # Wait for OpenSearch collection to be active
     log_info "Checking OpenSearch Serverless collection status..."
     
-    # Get collection name from CDK outputs
-    if [ -f "cdk-outputs-infrastructure.json" ]; then
+    # Get collection name from CDK outputs (now includes region)
+    if [ -f "cdk-outputs-foundation.json" ]; then
         COLLECTION_NAME=$(python3 -c "
 import json
-with open('cdk-outputs-infrastructure.json', 'r') as f:
+with open('cdk-outputs-foundation.json', 'r') as f:
     outputs = json.load(f)
     for stack_outputs in outputs.values():
-        if 'CollectionName' in stack_outputs:
-            print(stack_outputs['CollectionName'])
+        if 'CollectionId' in stack_outputs:
+            print('rag-demo-collection-$ENVIRONMENT-$REGION')
             break
 " 2>/dev/null)
+        
+        # Replace variables with actual values
+        COLLECTION_NAME=${COLLECTION_NAME//\$ENVIRONMENT/$ENVIRONMENT}
+        COLLECTION_NAME=${COLLECTION_NAME//\$REGION/$REGION}
         
         if [ ! -z "$COLLECTION_NAME" ]; then
             log_info "Waiting for collection '$COLLECTION_NAME' to be active..."
             
-            # Wait for collection to be active (max 10 minutes)
-            TIMEOUT=600
+            # Wait for collection to be active (max 22 minutes)
+            TIMEOUT=1320
             ELAPSED=0
             
             while [ $ELAPSED -lt $TIMEOUT ]; do
@@ -294,10 +423,10 @@ with open('cdk-outputs-infrastructure.json', 'r') as f:
                     --output text 2>/dev/null || echo "UNKNOWN")
                 
                 if [ "$STATUS" = "ACTIVE" ]; then
-                    log_success "OpenSearch collection is active"
+                    log_success "✅ OpenSearch collection is active"
                     break
                 elif [ "$STATUS" = "FAILED" ]; then
-                    log_error "OpenSearch collection deployment failed"
+                    log_error "❌ OpenSearch collection deployment failed"
                     exit 1
                 else
                     log_info "Collection status: $STATUS (waiting...)"
@@ -307,14 +436,41 @@ with open('cdk-outputs-infrastructure.json', 'r') as f:
             done
             
             if [ $ELAPSED -ge $TIMEOUT ]; then
-                log_warning "Timeout waiting for OpenSearch collection"
+                log_error "❌ Timeout waiting for OpenSearch collection"
+                exit 1
             fi
         fi
     fi
     
+    # Wait additional time for IAM policy propagation
+    log_info "Waiting for IAM policy propagation (30 seconds)..."
+    sleep 30
+    
+    log_success "✅ Foundation resources are ready"
+}
+
+deploy_application_stack() {
+    log_info "Deploying application stack (Knowledge Base, index creation, monitoring)..."
+    
+    APPLICATION_STACK="RagDemoApplicationStack-$ENVIRONMENT"
+    
+    # Deploy application stack  
+    cdk deploy $APPLICATION_STACK \
+        --profile $PROFILE \
+        --context environment=$ENVIRONMENT \
+        --context region=$REGION \
+        --require-approval never \
+        --outputs-file cdk-outputs-application.json
+    
+    log_success "Application stack deployed successfully"
+}
+
+wait_for_resources() {
+    log_info "Waiting for application resources to be ready..."
+    
     # Additional wait for Knowledge Base to be ready
     sleep 30
-    log_success "Resources are ready"
+    log_success "Application resources are ready"
 }
 
 seed_initial_data() {
@@ -362,10 +518,10 @@ trigger_ingestion() {
     
     # Get Knowledge Base ID from CDK outputs
     KB_ID=""
-    if [ -f "cdk-outputs-infrastructure.json" ]; then
+    if [ -f "cdk-outputs-application.json" ]; then
         KB_ID=$(python3 -c "
 import json
-with open('cdk-outputs-infrastructure.json', 'r') as f:
+with open('cdk-outputs-application.json', 'r') as f:
     outputs = json.load(f)
     for stack_outputs in outputs.values():
         if 'KnowledgeBaseId' in stack_outputs:
@@ -426,10 +582,10 @@ with open('cdk-outputs-frontend.json', 'r') as f:
         fi
     fi
     
-    if [ -f "cdk-outputs-infrastructure.json" ]; then
+    if [ -f "cdk-outputs-application.json" ]; then
         KNOWLEDGE_BASE_ID=$(python3 -c "
 import json
-with open('cdk-outputs-infrastructure.json', 'r') as f:
+with open('cdk-outputs-application.json', 'r') as f:
     outputs = json.load(f)
     for stack_outputs in outputs.values():
         if 'KnowledgeBaseId' in stack_outputs:
@@ -437,9 +593,15 @@ with open('cdk-outputs-infrastructure.json', 'r') as f:
             break
 " 2>/dev/null)
         
+        if [ ! -z "$KNOWLEDGE_BASE_ID" ]; then
+            echo -e "${GREEN}🧠 Knowledge Base ID:${NC} $KNOWLEDGE_BASE_ID"
+        fi
+    fi
+    
+    if [ -f "cdk-outputs-foundation.json" ]; then
         COLLECTION_ENDPOINT=$(python3 -c "
 import json
-with open('cdk-outputs-infrastructure.json', 'r') as f:
+with open('cdk-outputs-foundation.json', 'r') as f:
     outputs = json.load(f)
     for stack_outputs in outputs.values():
         if 'CollectionEndpoint' in stack_outputs:
@@ -447,15 +609,20 @@ with open('cdk-outputs-infrastructure.json', 'r') as f:
             break
 " 2>/dev/null)
         
-        if [ ! -z "$KNOWLEDGE_BASE_ID" ]; then
-            echo -e "${GREEN}🧠 Knowledge Base ID:${NC} $KNOWLEDGE_BASE_ID"
-        fi
-        
         if [ ! -z "$COLLECTION_ENDPOINT" ]; then
             echo -e "${GREEN}🔍 OpenSearch Endpoint:${NC} $COLLECTION_ENDPOINT"
         fi
     fi
     
+    echo ""
+    echo "=========================================="
+    echo "🏗️  Deployment Architecture"
+    echo "=========================================="
+    echo "✅ 1. CoreStack        - IAM roles and policies"
+    echo "✅ 2. StorageStack     - S3 buckets, KMS keys"  
+    echo "✅ 3. FoundationStack  - OpenSearch collection, policies"
+    echo "✅ 4. ApplicationStack - Knowledge Base, monitoring"
+    echo "✅ 5. FrontendStack    - Streamlit UI"
     echo ""
     echo "=========================================="
     echo "📚 Next Steps"
@@ -466,7 +633,14 @@ with open('cdk-outputs-infrastructure.json', 'r') as f:
     echo "4. 💬 Start chatting with your knowledge base!"
     echo ""
     echo -e "${BLUE}💡 Tip:${NC} Check the CloudWatch dashboard for monitoring"
-    echo -e "${BLUE}💡 Tip:${NC} Use 'cdk destroy' to clean up infrastructure (storage will remain)"
+    echo -e "${BLUE}💡 Tip:${NC} Use 'cdk destroy' to clean up (storage will remain)"
+    echo ""
+    echo "=========================================="
+    echo "⏱️  IAM Propagation & Deployment Notes"
+    echo "=========================================="
+    echo "• CoreStack deployed first with 3-minute IAM propagation wait"
+    echo "• OpenSearch collection given 22 minutes to provision"
+    echo "• All timeouts optimized for AWS service propagation"
     echo ""
 }
 
@@ -498,8 +672,10 @@ main() {
     
     log_info "Starting deployment process..."
     
+    deploy_core_stack           # 🆕 Deploy IAM roles first
     deploy_storage_stack
-    deploy_infrastructure_stack
+    deploy_foundation_stack     # Deploy foundation second  
+    deploy_application_stack    # Deploy application third
     wait_for_resources
     seed_initial_data
     trigger_ingestion
@@ -510,12 +686,12 @@ main() {
 
 # Show usage if no arguments
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <environment> [region] [aws-profile]"
+    echo "Usage: $0 --region <region> [OPTIONS]"
     echo ""
     echo "Arguments:"
-    echo "  environment    dev, staging, or prod (required)"
-    echo "  region         AWS region (default: us-east-1)"
-    echo "  aws-profile    AWS CLI profile (default: default)"
+    echo "  --region <region>        AWS region for deployment (e.g., us-east-1, us-west-2)"
+    echo "  --environment <env>      Deployment environment (dev|staging|prod) [default: dev]"
+    echo "  --profile <profile>      AWS CLI profile [default: default]"
     echo ""
     echo "🔒 Security: Restrict Frontend Access to Your IP"
     echo "  Set ALLOWED_IPS environment variable to restrict access:"
@@ -523,14 +699,14 @@ if [ $# -eq 0 ]; then
     echo "  export ALLOWED_IPS='[\"1.2.3.4/32\", \"5.6.7.8/24\"]'  # Multiple IPs/ranges"
     echo ""
     echo "Examples:"
-    echo "  $0 dev                           # Deploy with open access (dev only)"
-    echo "  $0 staging us-west-2             # Deploy to staging"
-    echo "  $0 prod us-east-1 production     # Deploy to production"
+    echo "  $0 --region us-east-1                                    # Deploy to dev in us-east-1"
+    echo "  $0 --region us-west-2 --environment staging              # Deploy to staging"
+    echo "  $0 --region eu-west-1 --environment prod --profile prod  # Deploy to production"
     echo ""
     echo "Security Examples:"
-    echo "  ./scripts/get-my-ip.sh                    # Get your current IP"
-    echo "  export ALLOWED_IPS='[\"1.2.3.4/32\"]'    # Set IP restriction"
-    echo "  $0 prod                                   # Deploy with IP restriction"
+    echo "  ./scripts/get-my-ip.sh                                   # Get your current IP"
+    echo "  export ALLOWED_IPS='[\"1.2.3.4/32\"]'                    # Set IP restriction"
+    echo "  $0 --region us-east-1 --environment prod                 # Deploy with IP restriction"
     echo ""
     echo "⚠️  For production deployments, IP restriction is HIGHLY recommended!"
     echo ""
@@ -538,4 +714,5 @@ if [ $# -eq 0 ]; then
 fi
 
 # Run main deployment
+parse_arguments "$@"
 main 

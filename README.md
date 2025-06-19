@@ -45,7 +45,7 @@ This project solves a critical problem in RAG development: **balancing rapid ite
 - **Smart Document Retrieval**: Hybrid search with confidence scores and context
 - **Persistent Storage**: Documents survive infrastructure teardowns
 - **Enterprise Architecture**: Multi-environment deployment with monitoring
-- **One-Command Deploy**: Full system running in under 5 minutes
+- **One-Command Deploy**: Full system running in 15-25 minutes
 
 ### 🚧 **Demo Limitations (By Design)**
 - **No Document Management UI**: Can't browse/manage uploaded documents via web interface
@@ -75,7 +75,7 @@ This demo provides a **solid foundation** that can evolve into a full production
 - 🔧 [Troubleshooting](Documentation/docs/TROUBLESHOOTING.md) - Common issues and solutions
 - 🗺️ [Roadmap & Future Features](Documentation/docs/ROADMAP.md) - Planned enhancements and evolution
 
-## Quick Start (5 Minutes to Running System)
+## Quick Start (15-25 Minutes to Running System)
 
 ### Prerequisites
 
@@ -146,7 +146,7 @@ aws bedrock list-foundation-models --region us-east-1 > /dev/null && echo "✅ B
 aws s3 ls > /dev/null && echo "✅ S3 OK" || echo "❌ Need S3 permissions"
 ```
 
-### 🚀 Deploy in 1 Minute
+### 🚀 Deploy in 20 Minutes
 
 ```bash
 # 1. Clone and setup
@@ -160,7 +160,7 @@ cd rag-demo-cdk
 export ALLOWED_IPS='["$(curl -s ifconfig.me)/32"]'
 
 # 4. One-command deployment to development environment
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 
 # 🎉 Done! The script will output your RAG chat URL
 ```
@@ -180,11 +180,61 @@ For production, add proper security:
 # 1. Set your company's allowed IP addresses
 export ALLOWED_IPS='["203.0.113.0/24", "198.51.100.50/32"]'  # Replace with actual IPs
 
-# 2. Deploy to production environment
-./scripts/deploy.sh prod
+# 2. Deploy to production environment in your preferred region
+./scripts/deploy.sh --region us-east-1 --environment prod
 
 # 3. The URL will be restricted to your specified IPs only
 ```
+
+## 📋 Deployment Commands Reference
+
+The `deploy.sh` script now uses modern command-line flags for better clarity and control:
+
+### **Basic Usage**
+```bash
+# Deploy to development (default environment)
+./scripts/deploy.sh --region us-east-1
+
+# Deploy to specific environment
+./scripts/deploy.sh --region us-west-2 --environment staging
+
+# Deploy to production with custom AWS profile
+./scripts/deploy.sh --region eu-west-1 --environment prod --profile production
+
+# Get help and see all available options
+./scripts/deploy.sh --help
+```
+
+### **Required Arguments**
+- `--region <region>` - **REQUIRED**: AWS region for deployment
+
+### **Optional Arguments**
+- `--environment <env>` - Environment: dev, staging, or prod [default: dev]
+- `--profile <profile>` - AWS CLI profile [default: default]
+- `--help, -h` - Show comprehensive help
+
+### **Supported Regions**
+- **Americas**: `us-east-1`, `us-west-2`
+- **Europe**: `eu-west-1`, `eu-central-1`
+- **Asia Pacific**: `ap-southeast-1`, `ap-northeast-1`
+
+### **Examples by Use Case**
+```bash
+# Quick development deployment
+./scripts/deploy.sh --region us-east-1
+
+# Multi-region staging deployment
+./scripts/deploy.sh --region eu-west-1 --environment staging
+
+# Production with security and custom profile
+export ALLOWED_IPS='["203.0.113.0/24"]'
+./scripts/deploy.sh --region us-east-1 --environment prod --profile production
+
+# Different region for data residency requirements
+./scripts/deploy.sh --region eu-central-1 --environment prod
+```
+
+**💡 Pro Tip**: The `--region` flag ensures you never accidentally deploy to the wrong region and makes your deployment commands self-documenting!
 
 ## Architecture Overview
 
@@ -220,7 +270,8 @@ rag-demo-cdk/
 │   ├── lib/
 │   │   ├── stacks/
 │   │   │   ├── storage-stack.ts          # Persistent S3 resources
-│   │   │   ├── infrastructure-stack.ts   # Disposable AI infrastructure
+│   │   │   ├── foundation-stack.ts       # OpenSearch collection, IAM roles
+│   │   │   ├── application-stack.ts      # Knowledge Base, monitoring
 │   │   │   └── frontend-stack.ts         # Streamlit deployment
 │   │   ├── constructs/
 │   │   │   ├── vector-database.ts        # OpenSearch Serverless setup
@@ -268,7 +319,7 @@ rag-demo-cdk/
 - **Automated Alerts**: Get notified of issues before users do
 
 ### 🚀 Developer Experience
-- **One-Command Deploy**: Get running in under 5 minutes
+- **One-Command Deploy**: Get running in 15-25 minutes
 - **Hot Reloading**: Rapid iteration on frontend changes
 - **Environment Isolation**: Separate dev/staging/prod deployments
 - **Infrastructure as Code**: Version control your entire stack
@@ -330,7 +381,7 @@ Most users should use the **deployed version** rather than local development:
 
 ```bash
 # Deploy complete system (includes frontend)
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 
 # ✅ Access your RAG system via the provided URL
 # ✅ No local setup required
@@ -368,7 +419,7 @@ For testing against deployed infrastructure:
 **Prerequisites**: Deploy the infrastructure first:
 ```bash
 # Deploy backend infrastructure first
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 # Note the outputs: Knowledge Base ID, S3 bucket, etc.
 ```
 
@@ -391,7 +442,7 @@ streamlit run app.py
 # ✅ Real document search and AI responses
 
 # 4. Deploy changes when ready
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 ```
 
 ### Adding New Features
@@ -404,7 +455,7 @@ npm run test          # CDK tests
 pytest frontend/      # Python tests
 
 # 3. Deploy to dev environment
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 
 # 4. Create pull request when ready
 ```
@@ -448,7 +499,7 @@ cdk bootstrap aws://ACCOUNT-ID/REGION
 **❌ "Streamlit app shows 'Configuration not found'"**
 ```bash
 # Solution: Deploy infrastructure stack first
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 # Frontend depends on infrastructure outputs
 ```
 
@@ -477,7 +528,7 @@ pip install -r requirements.txt
 streamlit run app.py
 
 # Alternative: Use deployed frontend instead of local development
-./scripts/deploy.sh dev  # Then use the deployed URL
+./scripts/deploy.sh --region us-east-1  # Then use the deployed URL
 ```
 
 **❌ "Missing required configuration fields: ['knowledgeBaseId']"**
@@ -489,7 +540,7 @@ streamlit run app.py
 # ✅ Will now start with placeholder values and show development mode banner
 
 # Solution 2: Deploy infrastructure first (recommended for real functionality)
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 # Then use the deployed URL for full RAG capabilities
 ```
 
@@ -518,7 +569,7 @@ cd ..
 git checkout -b feature/your-feature-name
 
 # 6. Deploy to your dev environment
-./scripts/deploy.sh dev
+./scripts/deploy.sh --region us-east-1
 ```
 
 ### Code Quality Standards
@@ -566,6 +617,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
   <b>🚀 Ready to build your own ChatGPT for documents?</b><br>
-  <i>Deploy in 5 minutes with one command!</i><br><br>
-  <code>./scripts/deploy.sh dev</code>
+  <i>Deploy in 15-25 minutes with one command!</i><br><br>
+  <code>./scripts/deploy.sh --region us-east-1</code>
 </div> 

@@ -16,6 +16,7 @@ import {
 export interface VectorDatabaseProps {
   config: Config;
   knowledgeBaseRole?: iam.Role;
+  indexCreationLambdaRole?: iam.Role;
 }
 
 export class VectorDatabaseConstruct extends Construct {
@@ -25,11 +26,21 @@ export class VectorDatabaseConstruct extends Construct {
   public dataAccessPolicy: opensearchserverless.CfnAccessPolicy; // Remove readonly to allow updates
   public readonly networkPolicy: opensearchserverless.CfnSecurityPolicy;
   public readonly encryptionPolicy: opensearchserverless.CfnSecurityPolicy;
+  
+  // Store configuration and roles
+  private config: Config;
+  private knowledgeBaseRole?: iam.Role;
+  private indexCreationLambdaRole?: iam.Role;
 
   constructor(scope: Construct, id: string, props: VectorDatabaseProps) {
     super(scope, id);
 
-    const { config } = props;
+    const { config, knowledgeBaseRole, indexCreationLambdaRole } = props;
+    
+    // Store for later use
+    this.config = config;
+    this.knowledgeBaseRole = knowledgeBaseRole;
+    this.indexCreationLambdaRole = indexCreationLambdaRole;
 
     // Validate region support
     if (!isOpenSearchServerlessSupportedInRegion(config.region)) {
@@ -47,8 +58,8 @@ export class VectorDatabaseConstruct extends Construct {
     this.collectionEndpoint = `https://${this.collection.ref}.${config.region}.aoss.amazonaws.com`;
     this.dashboardsEndpoint = `https://${this.collection.ref}.${config.region}.aoss.amazonaws.com/_dashboards`;
     
-    // Create data access policy
-    this.dataAccessPolicy = this.createDataAccessPolicy(config, props.knowledgeBaseRole);
+    // Create data access policy with available roles (Knowledge Base role required, Lambda role optional)
+    this.dataAccessPolicy = this.createDataAccessPolicy(config, knowledgeBaseRole, indexCreationLambdaRole);
     
     // Create SSM parameters
     this.createSSMParameters(config);
@@ -131,7 +142,8 @@ export class VectorDatabaseConstruct extends Construct {
 
   private createDataAccessPolicy(
     config: Config, 
-    knowledgeBaseRole?: iam.Role
+    knowledgeBaseRole?: iam.Role,
+    indexCreationLambdaRole?: iam.Role
   ): opensearchserverless.CfnAccessPolicy {
     const policyName = generateResourceName(config, 'data-access-policy');
     
@@ -147,6 +159,11 @@ export class VectorDatabaseConstruct extends Construct {
     // Add knowledge base role if provided
     if (knowledgeBaseRole) {
       principals.push(knowledgeBaseRole.roleArn);
+    }
+
+    // Add index creation Lambda role if provided
+    if (indexCreationLambdaRole) {
+      principals.push(indexCreationLambdaRole.roleArn);
     }
 
     const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(this, 'DataAccessPolicy', {

@@ -131,9 +131,9 @@ export function getConfig(environment: string, region: string = 'us-east-1'): Co
     throw new Error(`Invalid environment: ${environment}. Must be one of: dev, staging, prod`);
   }
   
-  // Generate resource names with environment suffix
-  const bucketName = process.env.DOCUMENTS_BUCKET_NAME || `rag-demo-documents-${env}-${Date.now()}`;
-  const collectionName = `rag-demo-collection-${env}`;
+  // Generate resource names with environment and region suffix for multi-region deployment
+  const bucketName = process.env.DOCUMENTS_BUCKET_NAME || `rag-demo-documents-${env}-${region}-${Date.now()}`;
+  const collectionName = `rag-demo-collection-${env}-${region}`;
   
   // Merge configurations
   const config: Config = {

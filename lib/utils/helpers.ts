@@ -198,17 +198,17 @@ export function getTimeoutConfiguration(config: Config): {
 } {
   const baseTimeouts = {
     dev: {
-      lambdaTimeout: cdk.Duration.minutes(5),
-      ingestionTimeout: cdk.Duration.minutes(15),
+      lambdaTimeout: cdk.Duration.minutes(15),
+      ingestionTimeout: cdk.Duration.minutes(30),
       queryTimeout: cdk.Duration.seconds(30),
     },
     staging: {
-      lambdaTimeout: cdk.Duration.minutes(10),
-      ingestionTimeout: cdk.Duration.minutes(30),
+      lambdaTimeout: cdk.Duration.minutes(20),
+      ingestionTimeout: cdk.Duration.minutes(45),
       queryTimeout: cdk.Duration.minutes(1),
     },
     prod: {
-      lambdaTimeout: cdk.Duration.minutes(15),
+      lambdaTimeout: cdk.Duration.minutes(25),
       ingestionTimeout: cdk.Duration.hours(1),
       queryTimeout: cdk.Duration.minutes(2),
     },

@@ -1,1 +1,10 @@
-{}
+{
+  "RagDemoStorageStack-dev": {
+    "DocumentsBucketName": "rag-demo-documents-dev-1750285309400",
+    "DocumentsBucketArn": "arn:aws:s3:::rag-demo-documents-dev-1750285309400",
+    "NotificationTopicArn": "arn:aws:sns:us-west-2:309046705525:rag-demo-storage-events-dev",
+    "ExportsOutputRefDocumentsBucket9EC9DEB9131399C0": "rag-demo-documents-dev-1750285309400",
+    "EncryptionKeyId": "e6c0cb83-f404-454b-802c-4b225e44e344",
+    "ExportsOutputFnGetAttDocumentsBucket9EC9DEB9ArnEA5095A7": "arn:aws:s3:::rag-demo-documents-dev-1750285309400"
+  }
+}

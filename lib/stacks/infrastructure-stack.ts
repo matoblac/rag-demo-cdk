@@ -48,19 +48,23 @@ export class InfrastructureStack extends cdk.Stack {
     // Get notification topic from storage stack
     const notificationTopic = this.getNotificationTopicFromSSM(config);
 
-    // 1. Create Knowledge Base role first (without the full construct)
+    // 1. Create Knowledge Base role first (with all permissions including OpenSearch)
     const knowledgeBaseRole = this.createKnowledgeBaseRole(config, documentsBucket, encryptionKey);
 
-    // 2. Create Vector Database with the Knowledge Base role
+    // 2. Create Lambda role for index creation (before vector database)
+    const indexCreationLambdaRole = this.createIndexCreationLambdaRole(config);
+
+    // 3. Create Vector Database with both roles included in data access policy
     this.vectorDatabase = new VectorDatabaseConstruct(this, 'VectorDatabase', {
       config,
       knowledgeBaseRole,
+      indexCreationLambdaRole, // Include for index creation
     });
 
-    // 3. Create the OpenSearch index before Knowledge Base creation
-    const indexCreationCustomResource = this.createIndexCreationResource(config, knowledgeBaseRole);
+    // 4. Create the OpenSearch index before Knowledge Base creation
+    const indexCreationCustomResource = this.createIndexCreationResource(config, indexCreationLambdaRole);
 
-    // 4. Create Knowledge Base with the vector database and existing role (after index exists)
+    // 5. Create Knowledge Base with the vector database and existing role
     this.knowledgeBase = new KnowledgeBaseConstruct(this, 'KnowledgeBase', {
       config,
       documentsBucket,
@@ -617,14 +621,45 @@ def setup_monitoring_dashboard():
     return role;
   }
 
-  private createIndexCreationResource(config: Config, knowledgeBaseRole: cdk.aws_iam.Role): cdk.CustomResource {
+  private createIndexCreationLambdaRole(config: Config): cdk.aws_iam.Role {
+    const roleName = `RagDemoIndexCreationRole${config.environment.charAt(0).toUpperCase() + config.environment.slice(1)}`;
+
+    const role = new cdk.aws_iam.Role(this, 'IndexCreationLambdaRole', {
+      roleName,
+      assumedBy: new cdk.aws_iam.ServicePrincipal('lambda.amazonaws.com'),
+      description: `IAM Role for OpenSearch index creation Lambda in ${config.environment}`,
+      managedPolicies: [
+        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // OpenSearch Serverless permissions for index creation
+    role.addToPolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: [
+        'aoss:APIAccessAll',
+        'aoss:CreateIndex',
+        'aoss:UpdateIndex',
+        'aoss:DescribeIndex',
+      ],
+      resources: [
+        `arn:aws:aoss:${config.region}:${this.account}:collection/*`,
+        `arn:aws:aoss:${config.region}:${this.account}:index/*/*`,
+      ],
+    }));
+
+    return role;
+  }
+
+  private createIndexCreationResource(config: Config, lambdaRole: cdk.aws_iam.Role): cdk.CustomResource {
     // Create a custom resource Lambda that creates the OpenSearch index
     const indexCreationLambda = new cdk.aws_lambda.Function(this, 'IndexCreationLambda', {
       functionName: `rag-demo-index-creation-${config.environment}`,
       runtime: cdk.aws_lambda.Runtime.PYTHON_3_11,
       handler: 'index.handler',
-      timeout: cdk.Duration.minutes(5),
+      timeout: cdk.Duration.minutes(15),
       memorySize: 512,
+      role: lambdaRole, // Use the pre-created role
       environment: {
         COLLECTION_ENDPOINT: this.vectorDatabase.collectionEndpoint,
         INDEX_NAME: config.indexName,
@@ -644,192 +679,293 @@ logger.setLevel(logging.INFO)
 def handler(event: Dict[str, Any], context) -> None:
     """
     Create OpenSearch index before Knowledge Base creation
+    ALWAYS sends response to CloudFormation
     """
-    response_url = event['ResponseURL']
+    status = 'FAILED'  # Default to FAILED
+    reason = 'Unknown error'
+    response_data = {}
     
     try:
         logger.info(f"Index creation event: {json.dumps(event, default=str)}")
         
         request_type = event.get('RequestType', 'Create')
+        logger.info(f"Processing request type: {request_type}")
         
         if request_type == 'Create':
+            logger.info("Starting index creation...")
             create_opensearch_index()
+            status = 'SUCCESS'
+            reason = 'OpenSearch index created successfully'
+            response_data = {'IndexName': event.get('IndexName', 'rag-documents')}
+            logger.info("Index creation completed successfully")
+            
         elif request_type == 'Delete':
-            logger.info("Index deletion not required - cleanup handled by collection deletion")
-        
-        # Send SUCCESS response to CloudFormation
-        send_response(event, context, 'SUCCESS', {
-            'Message': f'OpenSearch index operation completed: {request_type}'
-        })
-        
+            logger.info("Delete request - no action required")
+            status = 'SUCCESS'
+            reason = 'Index deletion not required - cleanup handled by collection deletion'
+            
+        elif request_type == 'Update':
+            logger.info("Update request - no action required")
+            status = 'SUCCESS'
+            reason = 'Index update not required'
+            
+        else:
+            logger.warning(f"Unsupported request type: {request_type}")
+            status = 'FAILED'
+            reason = f"Unsupported request type: {request_type}"
+            
     except Exception as e:
-        logger.error(f"Index creation failed: {str(e)}")
-        # Send FAILED response to CloudFormation
-        send_response(event, context, 'FAILED', {}, str(e))
+        logger.exception("Handler failed with exception:")
+        status = 'FAILED'
+        reason = f"Index creation failed: {str(e)}"
+        response_data = {'Error': str(e)}
+    
+    finally:
+        # ALWAYS send response to CloudFormation, no matter what happened
+        try:
+            logger.info(f"Sending CloudFormation response: {status} - {reason}")
+            send_response(event, context, status, response_data, reason)
+            logger.info("CloudFormation response sent successfully")
+        except Exception as response_error:
+            logger.critical(f"CRITICAL: Failed to send CloudFormation response: {response_error}")
+            # This is the worst case - we can't even respond to CloudFormation
+            # The only thing we can do is log and hope the timeout catches it
 
 def send_response(event, context, status, data, reason=None):
-    """Send response to CloudFormation"""
-    response_body = {
-        'Status': status,
-        'Reason': reason or f'See CloudWatch Log Stream: {context.log_stream_name}',
-        'PhysicalResourceId': 'opensearch-index-creation',
-        'StackId': event['StackId'],
-        'RequestId': event['RequestId'],
-        'LogicalResourceId': event['LogicalResourceId'],
-        'Data': data
-    }
-    
-    json_response = json.dumps(response_body)
-    logger.info(f"Response body: {json_response}")
-    
-    headers = {
-        'content-type': '',
-        'content-length': str(len(json_response))
-    }
-    
+    """Send response to CloudFormation - MUST ALWAYS WORK"""
     try:
-        http = urllib3.PoolManager()
-        response = http.request('PUT', event['ResponseURL'], body=json_response, headers=headers)
-        logger.info(f"CloudFormation response status: {response.status}")
-    except Exception as e:
-        logger.error(f"Failed to send response to CloudFormation: {str(e)}")
-
-def create_opensearch_index():
-    """Create the vector index in OpenSearch Serverless"""
-    try:
-        import os
-        import json
-        import urllib3
-        import boto3
-        from botocore.auth import SigV4Auth
-        from botocore.awsrequest import AWSRequest
-        
-        # Get environment variables
-        collection_endpoint = os.environ['COLLECTION_ENDPOINT']
-        index_name = os.environ['INDEX_NAME']
-        vector_dimensions = int(os.environ['VECTOR_DIMENSIONS'])
-        
-        logger.info(f"Creating index {index_name} at {collection_endpoint} with {vector_dimensions} dimensions")
-        
-        # Get AWS credentials
-        session = boto3.Session()
-        credentials = session.get_credentials()
-        region = session.region_name or 'us-east-1'
-        
-        if not credentials:
-            raise ValueError("No AWS credentials available")
-        
-        # Create the index mapping
-        index_mapping = {
-            "mappings": {
-                "properties": {
-                    "vector": {
-                        "type": "knn_vector",
-                        "dimension": vector_dimensions,
-                        "method": {
-                            "name": "hnsw",
-                            "space_type": "cosinesimil",
-                            "engine": "faiss",
-                            "parameters": {
-                                "ef_construction": 256,
-                                "m": 16
-                            }
-                        }
-                    },
-                    "text": {
-                        "type": "text",
-                        "analyzer": "standard"
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "properties": {
-                            "source": {"type": "keyword"},
-                            "page": {"type": "integer"},
-                            "chunk_id": {"type": "keyword"},
-                            "document_id": {"type": "keyword"},
-                            "created_at": {"type": "date"},
-                            "updated_at": {"type": "date"}
-                        }
-                    }
-                }
-            },
-            "settings": {
-                "index": {
-                    "knn": True,
-                    "number_of_shards": 1,
-                    "number_of_replicas": 0
-                }
-            }
+        response_body = {
+            'Status': status,
+            'Reason': reason or f'See CloudWatch Log Stream: {context.log_stream_name}',
+            'PhysicalResourceId': context.log_stream_name,  # Use log stream name for uniqueness
+            'StackId': event['StackId'],
+            'RequestId': event['RequestId'],
+            'LogicalResourceId': event['LogicalResourceId'],
+            'Data': data or {}
         }
         
-        # Create HTTP client with timeout
-        http = urllib3.PoolManager(timeout=urllib3.Timeout(connect=30, read=60))
+        json_response = json.dumps(response_body)
+        logger.info(f"Sending CloudFormation response: {json_response}")
         
-        # Check if index exists first
-        check_url = f"{collection_endpoint}/{index_name}"
-        check_request = AWSRequest(method='HEAD', url=check_url)
-        SigV4Auth(credentials, 'aoss', region).add_auth(check_request)
+        headers = {
+            'content-type': '',
+            'content-length': str(len(json_response))
+        }
         
-        logger.info(f"Checking if index exists: {check_url}")
-        check_response = http.request(
-            check_request.method,
-            check_request.url,
-            headers=dict(check_request.headers),
-            timeout=30
-        )
+        # Create HTTP pool with shorter timeout for the response
+        http = urllib3.PoolManager(timeout=urllib3.Timeout(connect=10, read=30))
         
-        logger.info(f"Index check response: {check_response.status}")
-        if check_response.status == 200:
-            logger.info(f"Index {index_name} already exists")
-            return
-        
-        # Create the index
-        create_url = f"{collection_endpoint}/{index_name}"
-        create_request = AWSRequest(
-            method='PUT',
-            url=create_url,
-            data=json.dumps(index_mapping),
-            headers={'Content-Type': 'application/json'}
-        )
-        SigV4Auth(credentials, 'aoss', region).add_auth(create_request)
-        
-        logger.info(f"Creating index: {create_url}")
         response = http.request(
-            create_request.method,
-            create_request.url,
-            body=create_request.body,
-            headers=dict(create_request.headers),
-            timeout=60
+            'PUT', 
+            event['ResponseURL'], 
+            body=json_response, 
+            headers=headers,
+            retries=3  # Retry the response if it fails
         )
         
-        logger.info(f"Index creation response: {response.status}, {response.data}")
-        if response.status in [200, 201]:
-            logger.info(f"Successfully created index {index_name}")
+        if response.status == 200:
+            logger.info("✅ CloudFormation response sent successfully")
         else:
-            error_msg = f"Failed to create index. Status: {response.status}, Response: {response.data.decode('utf-8') if response.data else 'No response body'}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-        
+            logger.warning(f"⚠️ CloudFormation response status: {response.status}")
+            
     except Exception as e:
-        logger.error(f"Failed to create OpenSearch index: {str(e)}")
-        raise
+        logger.critical(f"💥 CRITICAL: Failed to send CloudFormation response: {str(e)}")
+        # If we can't send the response, there's nothing more we can do
+        # CloudFormation will timeout and fail the stack
+
+def create_opensearch_index():
+    """Create the vector index in OpenSearch Serverless with retry logic and timeout protection"""
+    import os
+    import json
+    import urllib3
+    import boto3
+    import time
+    from botocore.auth import SigV4Auth
+    from botocore.awsrequest import AWSRequest
+    
+    # Get environment variables
+    collection_endpoint = os.environ['COLLECTION_ENDPOINT']
+    index_name = os.environ['INDEX_NAME']
+    vector_dimensions = int(os.environ['VECTOR_DIMENSIONS'])
+    
+    logger.info(f"Creating index {index_name} at {collection_endpoint} with {vector_dimensions} dimensions")
+    
+    # Timeout protection - leave 2 minutes buffer for CloudFormation response
+    import time
+    start_time = time.time()
+    max_execution_time = 13 * 60  # 13 minutes (out of 15 minute Lambda timeout)
+    
+    def time_remaining():
+        return max_execution_time - (time.time() - start_time)
+    
+    logger.info(f"Index creation has {max_execution_time} seconds to complete")
+    
+    # Get AWS credentials
+    session = boto3.Session()
+    credentials = session.get_credentials()
+    region = session.region_name or 'us-east-1'
+    
+    if not credentials:
+        raise ValueError("No AWS credentials available")
+    
+    # Create the index mapping
+    index_mapping = {
+        "mappings": {
+            "properties": {
+                "vector": {
+                    "type": "knn_vector",
+                    "dimension": vector_dimensions,
+                    "method": {
+                        "name": "hnsw",
+                        "space_type": "cosinesimil",
+                        "engine": "faiss",
+                        "parameters": {
+                            "ef_construction": 256,
+                            "m": 16
+                        }
+                    }
+                },
+                "text": {
+                    "type": "text",
+                    "analyzer": "standard"
+                },
+                "metadata": {
+                    "type": "object",
+                    "properties": {
+                        "source": {"type": "keyword"},
+                        "page": {"type": "integer"},
+                        "chunk_id": {"type": "keyword"},
+                        "document_id": {"type": "keyword"},
+                        "created_at": {"type": "date"},
+                        "updated_at": {"type": "date"}
+                    }
+                }
+            }
+        },
+        "settings": {
+            "index": {
+                "knn": True,
+                "number_of_shards": 1,
+                "number_of_replicas": 0
+            }
+        }
+    }
+    
+    # Create HTTP client with timeout
+    http = urllib3.PoolManager(timeout=urllib3.Timeout(connect=30, read=60))
+    
+    # Retry logic for data access policy propagation
+    max_retries = 6   # 6 retries over ~10 minutes  
+    base_delay = 60   # Start with 60 seconds
+    
+    for attempt in range(max_retries):
+        # Check if we have enough time left for this attempt
+        if time_remaining() < 120:  # Need at least 2 minutes left
+            logger.warning(f"⏰ Stopping retries - only {time_remaining():.1f} seconds left")
+            raise ValueError(f"Timeout protection: stopped after {attempt} attempts to ensure CloudFormation response")
+        
+        logger.info(f"🔄 Attempt {attempt + 1}/{max_retries} (⏰ {time_remaining():.1f}s remaining)")
+        
+        try:
+            # Check if index exists first
+            check_url = f"{collection_endpoint}/{index_name}"
+            check_request = AWSRequest(method='HEAD', url=check_url)
+            SigV4Auth(credentials, 'aoss', region).add_auth(check_request)
+            
+            logger.info(f"Attempt {attempt + 1}/{max_retries}: Checking if index exists: {check_url}")
+            check_response = http.request(
+                check_request.method,
+                check_request.url,
+                headers=dict(check_request.headers),
+                timeout=30
+            )
+            
+            logger.info(f"Index check response: {check_response.status}")
+            if check_response.status == 200:
+                logger.info(f"Index {index_name} already exists")
+                return
+            elif check_response.status == 403:
+                                 # 403 on HEAD request - data access policy not yet effective
+                 if attempt < max_retries - 1:
+                     delay = base_delay + (attempt * 30)  # Linear backoff: 60, 90, 120, 150, 180, 210s
+                     
+                     # Reduce delay if we're running out of time
+                     if time_remaining() < delay + 120:  # Need 2 min buffer
+                         delay = max(30, time_remaining() - 120)  # At least 30s, but respect timeout
+                         logger.warning(f"⏰ Reducing delay to {delay}s due to time constraints")
+                     
+                     logger.info(f"Access denied (403). Retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                     time.sleep(delay)
+                     continue
+                else:
+                    raise ValueError(f"Access denied after {max_retries} attempts. Data access policy may not include Lambda role.")
+            
+            # Try to create the index
+            create_url = f"{collection_endpoint}/{index_name}"
+            create_request = AWSRequest(
+                method='PUT',
+                url=create_url,
+                data=json.dumps(index_mapping),
+                headers={'Content-Type': 'application/json'}
+            )
+            SigV4Auth(credentials, 'aoss', region).add_auth(create_request)
+            
+            logger.info(f"Attempt {attempt + 1}/{max_retries}: Creating index: {create_url}")
+            response = http.request(
+                create_request.method,
+                create_request.url,
+                body=create_request.body,
+                headers=dict(create_request.headers),
+                timeout=60
+            )
+            
+            logger.info(f"Index creation response: {response.status}, {response.data}")
+            if response.status in [200, 201]:
+                logger.info(f"Successfully created index {index_name}")
+                return
+            elif response.status == 403:
+                                 # 403 on PUT request - data access policy not yet effective
+                 if attempt < max_retries - 1:
+                     delay = base_delay + (attempt * 30)  # Linear backoff: 60, 90, 120, 150, 180, 210s
+                     
+                     # Reduce delay if we're running out of time
+                     if time_remaining() < delay + 120:  # Need 2 min buffer
+                         delay = max(30, time_remaining() - 120)  # At least 30s, but respect timeout
+                         logger.warning(f"⏰ Reducing delay to {delay}s due to time constraints")
+                     
+                     logger.info(f"Access denied (403) on index creation. Retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                     time.sleep(delay)
+                     continue
+                else:
+                    raise ValueError(f"Access denied after {max_retries} attempts. Data access policy may not include Lambda role.")
+            else:
+                error_msg = f"Failed to create index. Status: {response.status}, Response: {response.data.decode('utf-8') if response.data else 'No response body'}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+                
+        except ValueError:
+            # Re-raise ValueError (our custom errors)
+            raise
+                 except Exception as e:
+             if attempt < max_retries - 1:
+                 delay = base_delay // 2 + (attempt * 15)  # Shorter linear backoff: 30, 45, 60, 75, 90s
+                 
+                 # Reduce delay if we're running out of time
+                 if time_remaining() < delay + 120:  # Need 2 min buffer
+                     delay = max(15, time_remaining() - 120)  # At least 15s, but respect timeout
+                     logger.warning(f"⏰ Reducing delay to {delay}s due to time constraints")
+                 
+                 logger.warning(f"Error on attempt {attempt + 1}: {str(e)}. Retrying in {delay} seconds...")
+                 time.sleep(delay)
+                 continue
+            else:
+                logger.error(f"Failed to create OpenSearch index after {max_retries} attempts: {str(e)}")
+                raise
 `),
     });
 
-    // Grant OpenSearch permissions to the Lambda
-    indexCreationLambda.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
-      effect: cdk.aws_iam.Effect.ALLOW,
-      actions: [
-        'aoss:APIAccessAll',
-        'aoss:CreateIndex',
-        'aoss:UpdateIndex',
-        'aoss:DescribeIndex',
-      ],
-      resources: [
-        `arn:aws:aoss:${config.region}:${this.account}:collection/${this.vectorDatabase.collection.ref}`,
-        `arn:aws:aoss:${config.region}:${this.account}:index/${this.vectorDatabase.collection.ref}/*`,
-      ],
-    }));
+    // No need for additional IAM policies or data access policy updates
+    // The role already has the necessary permissions and is included in the data access policy
 
     // Create the custom resource
     const customResource = new cdk.CustomResource(this, 'OpenSearchIndexCreation', {
